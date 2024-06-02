@@ -13,7 +13,7 @@
 
 <meta name="date" content="2024-06-02" />
 
-<title>第6章 集約</title>
+<title>Apache Parquet による前処理の高速化</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1550,430 +1550,107 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">第6章 集約</h1>
+<h1 class="title toc-ignore">Apache Parquet による前処理の高速化</h1>
 <h4 class="author">Osamu Morimoto</h4>
 <h4 class="date">2024-06-02</h4>
 
 </div>
 
 
+<div id="apache-parquet-とは" class="section level2">
+<h2>Apache Parquet とは</h2>
+<p>Apache Parquet
+はオープンソースの列指向データファイルフォーマットで、効率的なデータの保存と検索のために設計されています。</p>
+<p>複雑なデータを一括処理するための高性能な圧縮とエンコード方式を提供し、多くのプログラミング言語と分析ツールでサポートされています。</p>
+<p>Rの場合、arrowパッケージを使うことで Apache Parquet
+を扱うことができます。</p>
+<p>まず必要なパッケージを読み込みます。</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(conflicted)</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div>
 <pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
 ## ✔ dplyr     1.1.4     ✔ readr     2.1.5
 ## ✔ forcats   1.0.0     ✔ stringr   1.5.1
 ## ✔ ggplot2   3.5.1     ✔ tibble    3.2.1
 ## ✔ lubridate 1.9.3     ✔ tidyr     1.3.1
 ## ✔ purrr     1.0.2</code></pre>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>hotel       <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/Awesomebook_v2/raw/main/data/hotel.parquet&quot;</span>)</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>customer    <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/Awesomebook_v2/raw/main/data/customer.parquet&quot;</span>)</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>reservation <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/Awesomebook_v2/raw/main/data/reservation.parquet&quot;</span>)</span></code></pre></div>
-<div id="データ全体の集約と代表的な集約関数" class="section level2">
-<h2>6-1 データ全体の集約と代表的な集約関数</h2>
-<div id="q予約履歴の各種集計値の算出" class="section level3">
-<h3>Q：予約履歴の各種集計値の算出</h3>
-<div id="awesome" class="section level4">
-<h4>Awesome</h4>
-<p>不偏分散、不偏標準偏差ではなく標本分散、標本標準偏差です。</p>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>集計値の計算</li>
-</ol>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),          <span class="co"># カウント</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="at">sales =</span> <span class="fu">sum</span>(total_price),       <span class="co"># 総和</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="at">mean_sales =</span> <span class="fu">mean</span>(total_price), <span class="co"># 平均値</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="at">min_sales =</span> <span class="fu">min</span>(total_price),   <span class="co"># 最小値</span></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>    <span class="at">max_sales =</span> <span class="fu">max</span>(total_price),   <span class="co"># 最大値</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>    <span class="at">var_sales =</span> <span class="fu">var</span>(total_price),   <span class="co"># 標本分散</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>    <span class="at">std_sales =</span> <span class="fu">sd</span>(total_price)     <span class="co"># 標本標準偏差</span></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 1 × 7
-##   reservation_cnt       sales mean_sales min_sales max_sales var_sales std_sales
-##             &lt;int&gt;       &lt;dbl&gt;      &lt;dbl&gt;     &lt;int&gt;     &lt;int&gt;     &lt;dbl&gt;     &lt;dbl&gt;
-## 1         1799589 72048928400     40036.      4000    597000    1.22e9    34982.</code></pre>
-</div>
-</div>
-<div id="q予約顧客のユニークカウントの算出" class="section level3">
-<h3>Q：予約顧客のユニークカウントの算出</h3>
-<div id="awesome-1" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>ユニークカウントの計算</li>
-</ol>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">library</span>(microbenchmark) <span class="co">#処理速度測定のため</span></span></code></pre></div>
+<p>サンプルデータを<code>read_parquet()</code>関数で読み込みます。</p>
+<p>この時、デフォルトではデータフレームとして、引数<code>as_data_frame = FALSE</code>を付けると
+Arrow Table として読み込まれます。</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># データフレームとして</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>reservation_df <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/reservation.parquet&quot;</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  )</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#Arrow Table として</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>reservation_at <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/reservation.parquet&quot;</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">as_data_frame =</span> <span class="cn">FALSE</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  )</span></code></pre></div>
+<p>Arrow Table
+も通常のデータフレーム同様tidyverseで扱えますが、処理の最後に<code>collect()</code>関数を実行しないと結果が得られません。</p>
+<p>データフレームによる以下の処理を考えます。</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>reservation_df <span class="sc">|&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>    <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>    <span class="at">.by =</span> <span class="fu">c</span>(hotel_id, customer_id)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>    )</span></code></pre></div>
+<p>同じ処理を Arrow Table で行うにはこうします。
+最後に<code>collect()</code>が加わっただけです。</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>reservation_at <span class="sc">|&gt;</span></span>
 <span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="fu">distinct</span>(customer_id) <span class="sc">|&gt;</span></span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="fu">nrow</span>()</span></code></pre></div>
-<pre><code>## [1] 411336</code></pre>
-</div>
-</div>
-<div id="q予約単価の中央値およびパーセンタイル値の算出" class="section level3">
-<h3>Q：予約単価の中央値およびパーセンタイル値の算出</h3>
-<p>Rは中央値の線形補間を行わないのでテキストの結果とは異なる</p>
-<div id="awesome-2" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>中央値、パーセンタイル値の計算</li>
-</ol>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>    <span class="at">median_sales =</span> <span class="fu">median</span>(total_price),</span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>    <span class="at">p25_sales =</span> <span class="fu">quantile</span>(total_price, <span class="at">probs =</span> <span class="fl">0.25</span>),</span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>    <span class="at">p75_sales =</span> <span class="fu">quantile</span>(total_price, <span class="at">probs =</span> <span class="fl">0.75</span>)</span>
-<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 1 × 3
-##   median_sales p25_sales p75_sales
-##          &lt;int&gt;     &lt;dbl&gt;     &lt;dbl&gt;
-## 1        30400     17200     51000</code></pre>
-</div>
-</div>
-<div id="qホテルごとの宿泊人数の最頻値の算出" class="section level3">
-<h3>Q：ホテルごとの宿泊人数の最頻値の算出</h3>
-<div id="awesome-3" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>グループごとに最頻値を取得</li>
-</ol>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># 最頻値を算出する関数を定義</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>Mode <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  ux <span class="ot">&lt;-</span> <span class="fu">unique</span>(x)</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  ux[<span class="fu">which.max</span>(<span class="fu">tabulate</span>(<span class="fu">match</span>(x, ux)))]</span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>}</span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a></span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>    <span class="at">mode_people_num =</span> <span class="fu">Mode</span>(people_num),</span>
-<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>    <span class="at">.by =</span> hotel_id</span>
-<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>    )</span></code></pre></div>
-<pre><code>## # A tibble: 4,527 × 2
-##    hotel_id mode_people_num
-##       &lt;int&gt;           &lt;int&gt;
-##  1     2460               1
-##  2      962               3
-##  3      558               4
-##  4     3666               2
-##  5     2180               4
-##  6      974               2
-##  7     2260               3
-##  8      314               3
-##  9     2211               4
-## 10      333               1
-## # ℹ 4,517 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="グループごとの集約" class="section level2">
-<h2>6-2 グループごとの集約</h2>
-<div id="qホテルごとの売上の集計" class="section level3">
-<h3>Q：ホテルごとの売上の集計</h3>
-<div id="awesome-4" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>hotel_idの値ごとにtotal_priceの総和を計算</li>
-</ol>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>    <span class="at">sales =</span> <span class="fu">sum</span>(total_price),</span>
-<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>    <span class="at">.by =</span> hotel_id</span>
-<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 4,527 × 2
-##    hotel_id    sales
-##       &lt;int&gt;    &lt;int&gt;
-##  1     2460 12196800
-##  2      962 18081000
-##  3      558 12311400
-##  4     3666 27967500
-##  5     2180 15559500
-##  6      974 25750800
-##  7     2260 22950600
-##  8      314 50295000
-##  9     2211 16504400
-## 10      333 11569600
-## # ℹ 4,517 more rows</code></pre>
-</div>
-</div>
-<div id="qホテルごと顧客ごとの予約数の集計" class="section level3">
-<h3>Q：ホテルごと・顧客ごとの予約数の集計</h3>
-<div id="awesome-5" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>hotel_idとcustomer_idの値の組ごとにデータ数をカウント</li>
-</ol>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>    <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),</span>
-<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>    <span class="at">.by =</span> <span class="fu">c</span>(hotel_id, customer_id)</span>
-<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 1,798,305 × 3
-##    hotel_id customer_id reservation_cnt
-##       &lt;int&gt;       &lt;int&gt;           &lt;int&gt;
-##  1     2460       53431               1
-##  2      962      488390               1
-##  3      558      341335               1
-##  4     3666      398981               1
-##  5     2180      220381               1
-##  6      974        1494               1
-##  7     2260       24104               1
-##  8      314      124883               1
-##  9     2211       45282               1
-## 10      333      390595               1
-## # ℹ 1,798,295 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="数値の区間ごとの集約" class="section level2">
-<h2>6-3 数値の区間ごとの集約</h2>
-<div id="q等間隔の価格帯ごとにホテル数を集計" class="section level3">
-<h3>Q：等間隔の価格帯ごとにホテル数を集計</h3>
-<div id="awesome-6" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>unit_priceを数値区間に丸めた列を作成</li>
-<li>unit_price_rangeの値ごとにデータ数をカウント</li>
-</ol>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">unit_price_range =</span> <span class="fu">floor</span>(unit_price <span class="sc">/</span> <span class="dv">5000</span>) <span class="sc">*</span> <span class="dv">5000</span>) <span class="sc">|&gt;</span></span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">n</span>(), <span class="at">.by =</span> unit_price_range) <span class="sc">|&gt;</span></span>
-<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>  <span class="fu">arrange</span>(unit_price_range) <span class="co">#独自に加えました</span></span></code></pre></div>
-<pre><code>## # A tibble: 8 × 2
-##   unit_price_range count
-##              &lt;dbl&gt; &lt;int&gt;
-## 1                0   220
-## 2             5000  2760
-## 3            10000  1389
-## 4            15000   456
-## 5            20000   139
-## 6            25000    29
-## 7            30000     6
-## 8            35000     1</code></pre>
-</div>
-</div>
-<div id="q非等間隔の価格帯ごとにホテル数を集計" class="section level3">
-<h3>Q：非等間隔の価格帯ごとにホテル数を集計</h3>
-<div id="not-awesome-1" class="section level4">
-<h4>Not Awesome 1</h4>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>calc_unit_price_range <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>  <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">5000</span>) {</span>
-<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>    <span class="fu">return</span>(<span class="st">&quot;1: 0~4999&quot;</span>)</span>
-<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>    } <span class="cf">else</span> <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">10000</span>) {</span>
-<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>      <span class="fu">return</span>(<span class="st">&quot;2: 5000~9999&quot;</span>)</span>
-<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>      } <span class="cf">else</span> <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">20000</span>) {</span>
-<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>        <span class="fu">return</span>(<span class="st">&quot;3: 10000~19999&quot;</span>)</span>
-<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a>        } <span class="cf">else</span> <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">30000</span>) {</span>
-<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a>          <span class="fu">return</span>(<span class="st">&quot;4: 20000~29999&quot;</span>)</span>
-<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a>          } <span class="cf">else</span> {</span>
-<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a>            <span class="fu">return</span>(<span class="st">&quot;5: 30000~&quot;</span>)</span>
-<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a>          }</span>
-<span id="cb18-13"><a href="#cb18-13" tabindex="-1"></a>  }</span>
-<span id="cb18-14"><a href="#cb18-14" tabindex="-1"></a></span>
-<span id="cb18-15"><a href="#cb18-15" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb18-16"><a href="#cb18-16" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">unit_price_range =</span> <span class="fu">sapply</span>(unit_price, calc_unit_price_range)) <span class="sc">|&gt;</span></span>
-<span id="cb18-17"><a href="#cb18-17" tabindex="-1"></a>  <span class="fu">count</span>(unit_price_range)</span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range     n
-##   &lt;chr&gt;            &lt;int&gt;
-## 1 1: 0~4999          220
-## 2 2: 5000~9999      2760
-## 3 3: 10000~19999    1845
-## 4 4: 20000~29999     168
-## 5 5: 30000~            7</code></pre>
-</div>
-<div id="not-awesome-2" class="section level4">
-<h4>Not Awesome 2</h4>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">unit_price_range =</span> <span class="fu">case_when</span>(</span>
-<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">5000</span> <span class="sc">~</span> <span class="st">&quot;1: 0~4999&quot;</span>,</span>
-<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">10000</span> <span class="sc">~</span> <span class="st">&quot;2: 5000~9999&quot;</span>,</span>
-<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">20000</span> <span class="sc">~</span> <span class="st">&quot;3: 10000~19999&quot;</span>,</span>
-<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">30000</span> <span class="sc">~</span> <span class="st">&quot;4: 20000~29999&quot;</span>,</span>
-<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;5: 30000~&quot;</span></span>
-<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a>    )) <span class="sc">|&gt;</span></span>
-<span id="cb20-9"><a href="#cb20-9" tabindex="-1"></a>  <span class="fu">count</span>(unit_price_range)</span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range     n
-##   &lt;chr&gt;            &lt;int&gt;
-## 1 1: 0~4999          220
-## 2 2: 5000~9999      2760
-## 3 3: 10000~19999    1845
-## 4 4: 20000~29999     168
-## 5 5: 30000~            7</code></pre>
-</div>
-<div id="awesome-7" class="section level4">
-<h4>Awesome</h4>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>    <span class="at">unit_price_range =</span> <span class="fu">case_when</span>(</span>
-<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">5000</span> <span class="sc">~</span> <span class="dv">0</span>,</span>
-<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">10000</span> <span class="sc">~</span> <span class="dv">5000</span>,</span>
-<span id="cb22-6"><a href="#cb22-6" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">20000</span> <span class="sc">~</span> <span class="dv">10000</span>,</span>
-<span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">30000</span> <span class="sc">~</span> <span class="dv">20000</span>,</span>
-<span id="cb22-8"><a href="#cb22-8" tabindex="-1"></a>      <span class="at">.default =</span> <span class="dv">30000</span></span>
-<span id="cb22-9"><a href="#cb22-9" tabindex="-1"></a>      )) <span class="sc">|&gt;</span></span>
-<span id="cb22-10"><a href="#cb22-10" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">n</span>(), <span class="at">.by =</span> unit_price_range) <span class="sc">|&gt;</span></span>
-<span id="cb22-11"><a href="#cb22-11" tabindex="-1"></a>  <span class="fu">arrange</span>(unit_price_range) <span class="co">#独自に加えました</span></span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range count
-##              &lt;dbl&gt; &lt;int&gt;
-## 1                0   220
-## 2             5000  2760
-## 3            10000  1845
-## 4            20000   168
-## 5            30000     7</code></pre>
-</div>
-<div id="awesome-8" class="section level4">
-<h4>Awesome</h4>
-<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="at">unit_price_range =</span> <span class="fu">cut</span>(unit_price, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="dv">5000</span>, <span class="dv">10000</span>, <span class="dv">20000</span>, <span class="dv">30000</span>, <span class="cn">Inf</span>), <span class="at">right =</span> <span class="cn">FALSE</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Count =</span> <span class="fu">n</span>()) <span class="sc">|&gt;</span></span>
-<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a>  <span class="fu">arrange</span>(unit_price_range) <span class="co">#独自に加えました</span></span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range Count
-##   &lt;fct&gt;            &lt;int&gt;
-## 1 [-Inf,5e+03)       220
-## 2 [5e+03,1e+04)     2760
-## 3 [1e+04,2e+04)     1845
-## 4 [2e+04,3e+04)      168
-## 5 [3e+04, Inf)         7</code></pre>
-</div>
-</div>
-</div>
-<div id="時間の区間ごとの集約" class="section level2">
-<h2>6-4 時間の区間ごとの集約</h2>
-<div id="q月ごとの売上の集計" class="section level3">
-<h3>Q：月ごとの売上の集計</h3>
-<div id="not-awesome" class="section level4">
-<h4>Not Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>checkout_dateの年月部分を取り出した文字列を作成</li>
-<li>monthの値ごとにtotal_priceの総和を計算</li>
-</ol>
-<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">format</span>(<span class="fu">ymd</span>(checkout_date), <span class="st">&quot;%Y-%m&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">total_sales =</span> <span class="fu">sum</span>(total_price), <span class="at">.by =</span> month)</span></code></pre></div>
-<pre><code>## # A tibble: 60 × 2
-##    month   total_sales
-##    &lt;chr&gt;         &lt;dbl&gt;
-##  1 2015-01   730844200
-##  2 2015-02   650411000
-##  3 2015-03  1447995200
-##  4 2015-04   697578500
-##  5 2015-05  2185718000
-##  6 2015-06   697210900
-##  7 2015-07  1465165300
-##  8 2015-08  2910478200
-##  9 2015-09   708236200
-## 10 2015-10   733080000
-## # ℹ 50 more rows</code></pre>
-</div>
-<div id="awesome-9" class="section level4">
-<h4>Awesome</h4>
-<p>1）キャンセル済みではない予約の抽出
-2）checkout_dateを月ごとの年月に変換
-3）monthの値ごとにtotal_priceの総和を計算</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">floor_date</span>(checkout_date, <span class="st">&quot;month&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a>  <span class="fu">group_by</span>(month) <span class="sc">|&gt;</span></span>
-<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">total_price =</span> <span class="fu">sum</span>(total_price))</span></code></pre></div>
-<pre><code>## # A tibble: 60 × 2
-##    month               total_price
-##    &lt;dttm&gt;                    &lt;dbl&gt;
-##  1 2015-01-01 00:00:00   730844200
-##  2 2015-02-01 00:00:00   650411000
-##  3 2015-03-01 00:00:00  1447995200
-##  4 2015-04-01 00:00:00   697578500
-##  5 2015-05-01 00:00:00  2185718000
-##  6 2015-06-01 00:00:00   697210900
-##  7 2015-07-01 00:00:00  1465165300
-##  8 2015-08-01 00:00:00  2910478200
-##  9 2015-09-01 00:00:00   708236200
-## 10 2015-10-01 00:00:00   733080000
-## # ℹ 50 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="条件を満たす行の存在判定" class="section level2">
-<h2>6-5 条件を満たす行の存在判定</h2>
-<div id="qチェックインの7日以内に予約をキャンセルしたことがある顧客の判定" class="section level3">
-<h3>Q：チェックインの7日以内に予約をキャンセルしたことがある顧客の判定</h3>
-<div id="awesome-10" class="section level4">
-<h4>Awesome</h4>
-<p>customer_idの値ごとに、キャンセル済み、かつcanceled_atがcheckin_dateの7日以内、というデータが1件以上存在するかどうかを集計</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
-<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a>    <span class="at">is_canceled_within_7days_to_checkin =</span> <span class="fu">any</span>(</span>
-<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a>      status <span class="sc">==</span> <span class="st">&quot;canceled&quot;</span> <span class="sc">&amp;</span> <span class="fu">as.numeric</span>(checkin_date <span class="sc">-</span> canceled_at) <span class="sc">&lt;=</span> <span class="dv">7</span></span>
-<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a>      ),</span>
-<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a>    <span class="at">.by =</span> customer_id</span>
-<span id="cb30-7"><a href="#cb30-7" tabindex="-1"></a>    )</span></code></pre></div>
-<pre><code>## # A tibble: 417,368 × 2
-##    customer_id is_canceled_within_7days_to_checkin
-##          &lt;int&gt; &lt;lgl&gt;                              
-##  1       53431 FALSE                              
-##  2      488390 FALSE                              
-##  3      341335 FALSE                              
-##  4      398981 FALSE                              
-##  5      220381 FALSE                              
-##  6        1494 FALSE                              
-##  7       24104 FALSE                              
-##  8      124883 FALSE                              
-##  9       45282 FALSE                              
-## 10      390595 FALSE                              
-## # ℹ 417,358 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="条件を満たす行のみの集約" class="section level2">
-<h2>6-6 条件を満たす行のみの集約</h2>
-<div id="q顧客ごとの売上とキャンセル率の算出" class="section level3">
-<h3>Q：顧客ごとの売上とキャンセル率の算出</h3>
-<div id="awesome-11" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>未キャンセル予約のtotal_priceの総和を計算</li>
-<li>customer_idの値ごとに、キャンセル済み予約のカウントと全データ数の除算を計算</li>
-</ol>
-<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>    <span class="at">sales =</span> <span class="fu">sum</span>(<span class="fu">ifelse</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>, total_price, <span class="dv">0</span>)),</span>
-<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a>    <span class="at">cancel_rate =</span> <span class="fu">sum</span>(<span class="fu">ifelse</span>(status <span class="sc">==</span> <span class="st">&quot;canceled&quot;</span>, <span class="dv">1</span>, <span class="dv">0</span>)) <span class="sc">/</span> <span class="fu">n</span>(),</span>
-<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>    <span class="at">.by =</span> customer_id</span>
-<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 417,368 × 3
-##    customer_id  sales cancel_rate
-##          &lt;int&gt;  &lt;dbl&gt;       &lt;dbl&gt;
-##  1       53431 227500       0    
-##  2      488390 190600       0.125
-##  3      341335 146500       0.125
-##  4      398981 436300       0    
-##  5      220381 500500       0.111
-##  6        1494  55200       0    
-##  7       24104 274400       0    
-##  8      124883 482200       0    
-##  9       45282 101700       0    
-## 10      390595 146800       0    
-## # ℹ 417,358 more rows</code></pre>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>    <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>    <span class="at">.by =</span> <span class="fu">c</span>(hotel_id, customer_id)</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="fu">collect</span>() <span class="co">#この処理が加わっただけ</span></span></code></pre></div>
+<p>処理の速さを比べてみましょう。</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  reservation_df <span class="sc">|&gt;</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>      <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>      <span class="at">.by =</span> <span class="fu">c</span>(hotel_id, customer_id)</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>    )</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>}</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>at <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  reservation_at <span class="sc">|&gt;</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>      <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),</span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>      <span class="at">.by =</span> <span class="fu">c</span>(hotel_id, customer_id)</span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>    <span class="fu">collect</span>() <span class="co">#この処理が加わっただけ</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a>}</span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1234</span>)</span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">microbenchmark</span>(</span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a>  <span class="at">data_frame =</span> <span class="fu">df</span>(),</span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a>  <span class="at">arrow_table =</span> <span class="fu">at</span>(),</span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a>  <span class="at">times =</span> <span class="dv">100</span></span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a>  )</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">summary</span>(res)</span></code></pre></div>
+<pre><code>##          expr        min         lq      mean     median         uq        max
+## 1  data_frame 15111.2864 15973.1028 16948.943 16409.7643 17651.8857 23159.4643
+## 2 arrow_table   433.8274   458.3987   489.048   473.6471   492.2276   830.4927
+##   neval
+## 1   100
+## 2   100</code></pre>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">autoplot</span>(res)</span></code></pre></div>
+<p><img src="data:image/png;base64,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" width="672" /></p>
+<p>環境によって変わりますが、私の貧弱なノートPCでざっと35倍の速さです！</p>
+<p>Tidyverseのすべての処理にApache
+Parquetが対応しているわけでないのですが、前処理がかなり快適になるので積極的に
+Apache Parquet を使っていきましょう！</p>
+<p>以下の資料も参考になります。</p>
+<p><a href="https://eitsupi.github.io/tokyorslide/tokyor_97">Apache
+Arrow 鬼はええ！このままCSV全部Parquetに変換していこうぜ！</a></p>
+<p><a href="https://uribo.quarto.pub/hello-r-arrow/">arrowパッケージの基礎</a></p>
 <p>以上です。</p>
-<p><a href="ch07_join_tidyverse.Rmd">第7章 結合</a></p>
-<p><a href="ch05_select_tidyverse.html">第5章 抽出</a></p>
-<p><a href="index.html">Top</a></p>
-</div>
-</div>
+<p><a href="index.thml">Topへ</a></p>
 </div>
 
 

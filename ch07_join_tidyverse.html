@@ -13,7 +13,7 @@
 
 <meta name="date" content="2024-06-02" />
 
-<title>第6章 集約</title>
+<title>第7章 結合</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1550,7 +1550,7 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">第6章 集約</h1>
+<h1 class="title toc-ignore">第7章 結合</h1>
 <h4 class="author">Osamu Morimoto</h4>
 <h4 class="date">2024-06-02</h4>
 
@@ -1566,411 +1566,381 @@ border-radius: 0px;
 ## ✔ ggplot2   3.5.1     ✔ tibble    3.2.1
 ## ✔ lubridate 1.9.3     ✔ tidyr     1.3.1
 ## ✔ purrr     1.0.2</code></pre>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>hotel       <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/Awesomebook_v2/raw/main/data/hotel.parquet&quot;</span>)</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>customer    <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/Awesomebook_v2/raw/main/data/customer.parquet&quot;</span>)</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>reservation <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/Awesomebook_v2/raw/main/data/reservation.parquet&quot;</span>)</span></code></pre></div>
-<div id="データ全体の集約と代表的な集約関数" class="section level2">
-<h2>6-1 データ全体の集約と代表的な集約関数</h2>
-<div id="q予約履歴の各種集計値の算出" class="section level3">
-<h3>Q：予約履歴の各種集計値の算出</h3>
-<div id="awesome" class="section level4">
-<h4>Awesome</h4>
-<p>不偏分散、不偏標準偏差ではなく標本分散、標本標準偏差です。</p>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>集計値の計算</li>
-</ol>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),          <span class="co"># カウント</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="at">sales =</span> <span class="fu">sum</span>(total_price),       <span class="co"># 総和</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="at">mean_sales =</span> <span class="fu">mean</span>(total_price), <span class="co"># 平均値</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="at">min_sales =</span> <span class="fu">min</span>(total_price),   <span class="co"># 最小値</span></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>    <span class="at">max_sales =</span> <span class="fu">max</span>(total_price),   <span class="co"># 最大値</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>    <span class="at">var_sales =</span> <span class="fu">var</span>(total_price),   <span class="co"># 標本分散</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>    <span class="at">std_sales =</span> <span class="fu">sd</span>(total_price)     <span class="co"># 標本標準偏差</span></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 1 × 7
-##   reservation_cnt       sales mean_sales min_sales max_sales var_sales std_sales
-##             &lt;int&gt;       &lt;dbl&gt;      &lt;dbl&gt;     &lt;int&gt;     &lt;int&gt;     &lt;dbl&gt;     &lt;dbl&gt;
-## 1         1799589 72048928400     40036.      4000    597000    1.22e9    34982.</code></pre>
-</div>
-</div>
-<div id="q予約顧客のユニークカウントの算出" class="section level3">
-<h3>Q：予約顧客のユニークカウントの算出</h3>
-<div id="awesome-1" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>ユニークカウントの計算</li>
-</ol>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="fu">distinct</span>(customer_id) <span class="sc">|&gt;</span></span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="fu">nrow</span>()</span></code></pre></div>
-<pre><code>## [1] 411336</code></pre>
-</div>
-</div>
-<div id="q予約単価の中央値およびパーセンタイル値の算出" class="section level3">
-<h3>Q：予約単価の中央値およびパーセンタイル値の算出</h3>
-<p>Rは中央値の線形補間を行わないのでテキストの結果とは異なる</p>
-<div id="awesome-2" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>中央値、パーセンタイル値の計算</li>
-</ol>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>    <span class="at">median_sales =</span> <span class="fu">median</span>(total_price),</span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>    <span class="at">p25_sales =</span> <span class="fu">quantile</span>(total_price, <span class="at">probs =</span> <span class="fl">0.25</span>),</span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>    <span class="at">p75_sales =</span> <span class="fu">quantile</span>(total_price, <span class="at">probs =</span> <span class="fl">0.75</span>)</span>
-<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 1 × 3
-##   median_sales p25_sales p75_sales
-##          &lt;int&gt;     &lt;dbl&gt;     &lt;dbl&gt;
-## 1        30400     17200     51000</code></pre>
-</div>
-</div>
-<div id="qホテルごとの宿泊人数の最頻値の算出" class="section level3">
-<h3>Q：ホテルごとの宿泊人数の最頻値の算出</h3>
-<div id="awesome-3" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>グループごとに最頻値を取得</li>
-</ol>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># 最頻値を算出する関数を定義</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>Mode <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  ux <span class="ot">&lt;-</span> <span class="fu">unique</span>(x)</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  ux[<span class="fu">which.max</span>(<span class="fu">tabulate</span>(<span class="fu">match</span>(x, ux)))]</span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>}</span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a></span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>    <span class="at">mode_people_num =</span> <span class="fu">Mode</span>(people_num),</span>
-<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>    <span class="at">.by =</span> hotel_id</span>
-<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>    )</span></code></pre></div>
-<pre><code>## # A tibble: 4,527 × 2
-##    hotel_id mode_people_num
-##       &lt;int&gt;           &lt;int&gt;
-##  1     2460               1
-##  2      962               3
-##  3      558               4
-##  4     3666               2
-##  5     2180               4
-##  6      974               2
-##  7     2260               3
-##  8      314               3
-##  9     2211               4
-## 10      333               1
-## # ℹ 4,517 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="グループごとの集約" class="section level2">
-<h2>6-2 グループごとの集約</h2>
-<div id="qホテルごとの売上の集計" class="section level3">
-<h3>Q：ホテルごとの売上の集計</h3>
-<div id="awesome-4" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>hotel_idの値ごとにtotal_priceの総和を計算</li>
-</ol>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>    <span class="at">sales =</span> <span class="fu">sum</span>(total_price),</span>
-<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>    <span class="at">.by =</span> hotel_id</span>
-<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 4,527 × 2
-##    hotel_id    sales
-##       &lt;int&gt;    &lt;int&gt;
-##  1     2460 12196800
-##  2      962 18081000
-##  3      558 12311400
-##  4     3666 27967500
-##  5     2180 15559500
-##  6      974 25750800
-##  7     2260 22950600
-##  8      314 50295000
-##  9     2211 16504400
-## 10      333 11569600
-## # ℹ 4,517 more rows</code></pre>
-</div>
-</div>
-<div id="qホテルごと顧客ごとの予約数の集計" class="section level3">
-<h3>Q：ホテルごと・顧客ごとの予約数の集計</h3>
-<div id="awesome-5" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>hotel_idとcustomer_idの値の組ごとにデータ数をカウント</li>
-</ol>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>    <span class="at">reservation_cnt =</span> <span class="fu">n</span>(),</span>
-<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>    <span class="at">.by =</span> <span class="fu">c</span>(hotel_id, customer_id)</span>
-<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 1,798,305 × 3
-##    hotel_id customer_id reservation_cnt
-##       &lt;int&gt;       &lt;int&gt;           &lt;int&gt;
-##  1     2460       53431               1
-##  2      962      488390               1
-##  3      558      341335               1
-##  4     3666      398981               1
-##  5     2180      220381               1
-##  6      974        1494               1
-##  7     2260       24104               1
-##  8      314      124883               1
-##  9     2211       45282               1
-## 10      333      390595               1
-## # ℹ 1,798,295 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="数値の区間ごとの集約" class="section level2">
-<h2>6-3 数値の区間ごとの集約</h2>
-<div id="q等間隔の価格帯ごとにホテル数を集計" class="section level3">
-<h3>Q：等間隔の価格帯ごとにホテル数を集計</h3>
-<div id="awesome-6" class="section level4">
-<h4>Awesome</h4>
-<ol style="list-style-type: decimal">
-<li>unit_priceを数値区間に丸めた列を作成</li>
-<li>unit_price_rangeの値ごとにデータ数をカウント</li>
-</ol>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">unit_price_range =</span> <span class="fu">floor</span>(unit_price <span class="sc">/</span> <span class="dv">5000</span>) <span class="sc">*</span> <span class="dv">5000</span>) <span class="sc">|&gt;</span></span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">n</span>(), <span class="at">.by =</span> unit_price_range) <span class="sc">|&gt;</span></span>
-<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>  <span class="fu">arrange</span>(unit_price_range) <span class="co">#独自に加えました</span></span></code></pre></div>
-<pre><code>## # A tibble: 8 × 2
-##   unit_price_range count
-##              &lt;dbl&gt; &lt;int&gt;
-## 1                0   220
-## 2             5000  2760
-## 3            10000  1389
-## 4            15000   456
-## 5            20000   139
-## 6            25000    29
-## 7            30000     6
-## 8            35000     1</code></pre>
-</div>
-</div>
-<div id="q非等間隔の価格帯ごとにホテル数を集計" class="section level3">
-<h3>Q：非等間隔の価格帯ごとにホテル数を集計</h3>
-<div id="not-awesome-1" class="section level4">
-<h4>Not Awesome 1</h4>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>calc_unit_price_range <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>  <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">5000</span>) {</span>
-<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>    <span class="fu">return</span>(<span class="st">&quot;1: 0~4999&quot;</span>)</span>
-<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>    } <span class="cf">else</span> <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">10000</span>) {</span>
-<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>      <span class="fu">return</span>(<span class="st">&quot;2: 5000~9999&quot;</span>)</span>
-<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>      } <span class="cf">else</span> <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">20000</span>) {</span>
-<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>        <span class="fu">return</span>(<span class="st">&quot;3: 10000~19999&quot;</span>)</span>
-<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a>        } <span class="cf">else</span> <span class="cf">if</span>(x <span class="sc">&lt;</span> <span class="dv">30000</span>) {</span>
-<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a>          <span class="fu">return</span>(<span class="st">&quot;4: 20000~29999&quot;</span>)</span>
-<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a>          } <span class="cf">else</span> {</span>
-<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a>            <span class="fu">return</span>(<span class="st">&quot;5: 30000~&quot;</span>)</span>
-<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a>          }</span>
-<span id="cb18-13"><a href="#cb18-13" tabindex="-1"></a>  }</span>
-<span id="cb18-14"><a href="#cb18-14" tabindex="-1"></a></span>
-<span id="cb18-15"><a href="#cb18-15" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb18-16"><a href="#cb18-16" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">unit_price_range =</span> <span class="fu">sapply</span>(unit_price, calc_unit_price_range)) <span class="sc">|&gt;</span></span>
-<span id="cb18-17"><a href="#cb18-17" tabindex="-1"></a>  <span class="fu">count</span>(unit_price_range)</span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range     n
-##   &lt;chr&gt;            &lt;int&gt;
-## 1 1: 0~4999          220
-## 2 2: 5000~9999      2760
-## 3 3: 10000~19999    1845
-## 4 4: 20000~29999     168
-## 5 5: 30000~            7</code></pre>
-</div>
-<div id="not-awesome-2" class="section level4">
-<h4>Not Awesome 2</h4>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">unit_price_range =</span> <span class="fu">case_when</span>(</span>
-<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">5000</span> <span class="sc">~</span> <span class="st">&quot;1: 0~4999&quot;</span>,</span>
-<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">10000</span> <span class="sc">~</span> <span class="st">&quot;2: 5000~9999&quot;</span>,</span>
-<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">20000</span> <span class="sc">~</span> <span class="st">&quot;3: 10000~19999&quot;</span>,</span>
-<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a>    unit_price <span class="sc">&lt;</span> <span class="dv">30000</span> <span class="sc">~</span> <span class="st">&quot;4: 20000~29999&quot;</span>,</span>
-<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;5: 30000~&quot;</span></span>
-<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a>    )) <span class="sc">|&gt;</span></span>
-<span id="cb20-9"><a href="#cb20-9" tabindex="-1"></a>  <span class="fu">count</span>(unit_price_range)</span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range     n
-##   &lt;chr&gt;            &lt;int&gt;
-## 1 1: 0~4999          220
-## 2 2: 5000~9999      2760
-## 3 3: 10000~19999    1845
-## 4 4: 20000~29999     168
-## 5 5: 30000~            7</code></pre>
-</div>
-<div id="awesome-7" class="section level4">
-<h4>Awesome</h4>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>    <span class="at">unit_price_range =</span> <span class="fu">case_when</span>(</span>
-<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">5000</span> <span class="sc">~</span> <span class="dv">0</span>,</span>
-<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">10000</span> <span class="sc">~</span> <span class="dv">5000</span>,</span>
-<span id="cb22-6"><a href="#cb22-6" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">20000</span> <span class="sc">~</span> <span class="dv">10000</span>,</span>
-<span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a>      unit_price <span class="sc">&lt;</span> <span class="dv">30000</span> <span class="sc">~</span> <span class="dv">20000</span>,</span>
-<span id="cb22-8"><a href="#cb22-8" tabindex="-1"></a>      <span class="at">.default =</span> <span class="dv">30000</span></span>
-<span id="cb22-9"><a href="#cb22-9" tabindex="-1"></a>      )) <span class="sc">|&gt;</span></span>
-<span id="cb22-10"><a href="#cb22-10" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">n</span>(), <span class="at">.by =</span> unit_price_range) <span class="sc">|&gt;</span></span>
-<span id="cb22-11"><a href="#cb22-11" tabindex="-1"></a>  <span class="fu">arrange</span>(unit_price_range) <span class="co">#独自に加えました</span></span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range count
-##              &lt;dbl&gt; &lt;int&gt;
-## 1                0   220
-## 2             5000  2760
-## 3            10000  1845
-## 4            20000   168
-## 5            30000     7</code></pre>
-</div>
-<div id="awesome-8" class="section level4">
-<h4>Awesome</h4>
-<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
-<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="at">unit_price_range =</span> <span class="fu">cut</span>(unit_price, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="dv">5000</span>, <span class="dv">10000</span>, <span class="dv">20000</span>, <span class="dv">30000</span>, <span class="cn">Inf</span>), <span class="at">right =</span> <span class="cn">FALSE</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">Count =</span> <span class="fu">n</span>()) <span class="sc">|&gt;</span></span>
-<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a>  <span class="fu">arrange</span>(unit_price_range) <span class="co">#独自に加えました</span></span></code></pre></div>
-<pre><code>## # A tibble: 5 × 2
-##   unit_price_range Count
-##   &lt;fct&gt;            &lt;int&gt;
-## 1 [-Inf,5e+03)       220
-## 2 [5e+03,1e+04)     2760
-## 3 [1e+04,2e+04)     1845
-## 4 [2e+04,3e+04)      168
-## 5 [3e+04, Inf)         7</code></pre>
-</div>
-</div>
-</div>
-<div id="時間の区間ごとの集約" class="section level2">
-<h2>6-4 時間の区間ごとの集約</h2>
-<div id="q月ごとの売上の集計" class="section level3">
-<h3>Q：月ごとの売上の集計</h3>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>hotel       <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/hotel.parquet&quot;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>customer    <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/customer.parquet&quot;</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>reservation <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/reservation.parquet&quot;</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>campaign    <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/campaign.parquet&quot;</span>)</span></code></pre></div>
+<hr />
+<div id="対1または多対1の関係のテーブルの結合" class="section level2">
+<h2>7-1 1対1または多対1の関係のテーブルの結合</h2>
+<div id="q-ビジネスホテルかつ宿泊人数が1名の予約履歴の抽出" class="section level3">
+<h3>Q: ビジネスホテルかつ宿泊人数が1名の予約履歴の抽出</h3>
 <div id="not-awesome" class="section level4">
 <h4>Not Awesome</h4>
 <ol style="list-style-type: decimal">
-<li>キャンセル済みではない予約の抽出</li>
-<li>checkout_dateの年月部分を取り出した文字列を作成</li>
-<li>monthの値ごとにtotal_priceの総和を計算</li>
+<li>pd_reservationとpd_hotelをhotel_id列をキーとして内部結合</li>
+<li>結合したデータからビジネスホテルかつ宿泊1名の行を抽出</li>
 </ol>
-<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">format</span>(<span class="fu">ymd</span>(checkout_date), <span class="st">&quot;%Y-%m&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">total_sales =</span> <span class="fu">sum</span>(total_price), <span class="at">.by =</span> month)</span></code></pre></div>
-<pre><code>## # A tibble: 60 × 2
-##    month   total_sales
-##    &lt;chr&gt;         &lt;dbl&gt;
-##  1 2015-01   730844200
-##  2 2015-02   650411000
-##  3 2015-03  1447995200
-##  4 2015-04   697578500
-##  5 2015-05  2185718000
-##  6 2015-06   697210900
-##  7 2015-07  1465165300
-##  8 2015-08  2910478200
-##  9 2015-09   708236200
-## 10 2015-10   733080000
-## # ℹ 50 more rows</code></pre>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="fu">inner_join</span>(hotel, <span class="at">by =</span> <span class="st">&quot;hotel_id&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(hotel_type <span class="sc">==</span> <span class="st">&quot;ビジネスホテル&quot;</span> <span class="sc">&amp;</span> people_num <span class="sc">==</span> <span class="dv">1</span>)</span></code></pre></div>
+<pre><code>## # A tibble: 101,028 × 49
+##    reservation_id hotel_id customer_id reserved_at         checkin_date       
+##             &lt;int&gt;    &lt;int&gt;       &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;             
+##  1             72     2706      100573 2014-01-08 14:32:58 2015-01-01 00:00:00
+##  2            176     1870       40419 2014-01-14 02:33:55 2015-01-02 00:00:00
+##  3            190     1801        4819 2014-01-14 13:47:22 2015-01-01 00:00:00
+##  4            191     3422       53534 2014-01-14 14:22:49 2015-01-04 00:00:00
+##  5            194      521      138201 2014-01-14 15:39:34 2015-01-07 00:00:00
+##  6            240      986       17817 2014-01-16 20:41:57 2014-12-31 00:00:00
+##  7            289     3062       25934 2014-01-18 08:57:06 2015-01-06 00:00:00
+##  8            290     1032      306397 2014-01-18 12:59:36 2015-01-10 00:00:00
+##  9            302     3610      167932 2014-01-19 04:11:01 2015-01-07 00:00:00
+## 10            320     3141      486795 2014-01-19 16:37:50 2015-01-19 00:00:00
+## # ℹ 101,018 more rows
+## # ℹ 44 more variables: checkout_date &lt;dttm&gt;, length_of_stay &lt;int&gt;,
+## #   people_num &lt;int&gt;, total_price &lt;int&gt;, status &lt;chr&gt;, canceled_at &lt;dttm&gt;,
+## #   hotel_name &lt;chr&gt;, hotel_type &lt;chr&gt;, address_prefecture &lt;chr&gt;,
+## #   address_city &lt;chr&gt;, address_town &lt;chr&gt;, address_zipcode &lt;chr&gt;,
+## #   unit_price &lt;int&gt;, user_rating &lt;dbl&gt;, tag_001 &lt;int&gt;, tag_002 &lt;int&gt;,
+## #   tag_003 &lt;int&gt;, tag_004 &lt;int&gt;, tag_005 &lt;int&gt;, tag_006 &lt;int&gt;, …</code></pre>
 </div>
-<div id="awesome-9" class="section level4">
-<h4>Awesome</h4>
-<p>1）キャンセル済みではない予約の抽出
-2）checkout_dateを月ごとの年月に変換
-3）monthの値ごとにtotal_priceの総和を計算</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">floor_date</span>(checkout_date, <span class="st">&quot;month&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a>  <span class="fu">group_by</span>(month) <span class="sc">|&gt;</span></span>
-<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">total_price =</span> <span class="fu">sum</span>(total_price))</span></code></pre></div>
-<pre><code>## # A tibble: 60 × 2
-##    month               total_price
-##    &lt;dttm&gt;                    &lt;dbl&gt;
-##  1 2015-01-01 00:00:00   730844200
-##  2 2015-02-01 00:00:00   650411000
-##  3 2015-03-01 00:00:00  1447995200
-##  4 2015-04-01 00:00:00   697578500
-##  5 2015-05-01 00:00:00  2185718000
-##  6 2015-06-01 00:00:00   697210900
-##  7 2015-07-01 00:00:00  1465165300
-##  8 2015-08-01 00:00:00  2910478200
-##  9 2015-09-01 00:00:00   708236200
-## 10 2015-10-01 00:00:00   733080000
-## # ℹ 50 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="条件を満たす行の存在判定" class="section level2">
-<h2>6-5 条件を満たす行の存在判定</h2>
-<div id="qチェックインの7日以内に予約をキャンセルしたことがある顧客の判定" class="section level3">
-<h3>Q：チェックインの7日以内に予約をキャンセルしたことがある顧客の判定</h3>
-<div id="awesome-10" class="section level4">
-<h4>Awesome</h4>
-<p>customer_idの値ごとに、キャンセル済み、かつcanceled_atがcheckin_dateの7日以内、というデータが1件以上存在するかどうかを集計</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
-<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a>    <span class="at">is_canceled_within_7days_to_checkin =</span> <span class="fu">any</span>(</span>
-<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a>      status <span class="sc">==</span> <span class="st">&quot;canceled&quot;</span> <span class="sc">&amp;</span> <span class="fu">as.numeric</span>(checkin_date <span class="sc">-</span> canceled_at) <span class="sc">&lt;=</span> <span class="dv">7</span></span>
-<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a>      ),</span>
-<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a>    <span class="at">.by =</span> customer_id</span>
-<span id="cb30-7"><a href="#cb30-7" tabindex="-1"></a>    )</span></code></pre></div>
-<pre><code>## # A tibble: 417,368 × 2
-##    customer_id is_canceled_within_7days_to_checkin
-##          &lt;int&gt; &lt;lgl&gt;                              
-##  1       53431 FALSE                              
-##  2      488390 FALSE                              
-##  3      341335 FALSE                              
-##  4      398981 FALSE                              
-##  5      220381 FALSE                              
-##  6        1494 FALSE                              
-##  7       24104 FALSE                              
-##  8      124883 FALSE                              
-##  9       45282 FALSE                              
-## 10      390595 FALSE                              
-## # ℹ 417,358 more rows</code></pre>
-</div>
-</div>
-</div>
-<div id="条件を満たす行のみの集約" class="section level2">
-<h2>6-6 条件を満たす行のみの集約</h2>
-<div id="q顧客ごとの売上とキャンセル率の算出" class="section level3">
-<h3>Q：顧客ごとの売上とキャンセル率の算出</h3>
-<div id="awesome-11" class="section level4">
+<div id="awesome" class="section level4">
 <h4>Awesome</h4>
 <ol style="list-style-type: decimal">
-<li>未キャンセル予約のtotal_priceの総和を計算</li>
-<li>customer_idの値ごとに、キャンセル済み予約のカウントと全データ数の除算を計算</li>
+<li>people_numが1人のデータのみ抽出</li>
+<li>pd_hotelからビジネスホテルの行のみ抽出</li>
+<li>ビジネスホテルのみのマスタを内部結合</li>
 </ol>
-<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
-<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>    <span class="at">sales =</span> <span class="fu">sum</span>(<span class="fu">ifelse</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>, total_price, <span class="dv">0</span>)),</span>
-<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a>    <span class="at">cancel_rate =</span> <span class="fu">sum</span>(<span class="fu">ifelse</span>(status <span class="sc">==</span> <span class="st">&quot;canceled&quot;</span>, <span class="dv">1</span>, <span class="dv">0</span>)) <span class="sc">/</span> <span class="fu">n</span>(),</span>
-<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>    <span class="at">.by =</span> customer_id</span>
-<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## # A tibble: 417,368 × 3
-##    customer_id  sales cancel_rate
-##          &lt;int&gt;  &lt;dbl&gt;       &lt;dbl&gt;
-##  1       53431 227500       0    
-##  2      488390 190600       0.125
-##  3      341335 146500       0.125
-##  4      398981 436300       0    
-##  5      220381 500500       0.111
-##  6        1494  55200       0    
-##  7       24104 274400       0    
-##  8      124883 482200       0    
-##  9       45282 101700       0    
-## 10      390595 146800       0    
-## # ℹ 417,358 more rows</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(people_num <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="fu">inner_join</span>(</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>    hotel <span class="sc">|&gt;</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">filter</span>(hotel_type <span class="sc">==</span> <span class="st">&quot;ビジネスホテル&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>      <span class="fu">select</span>(hotel_id),</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">&quot;hotel_id&quot;</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>    )</span></code></pre></div>
+<pre><code>## # A tibble: 101,028 × 11
+##    reservation_id hotel_id customer_id reserved_at         checkin_date       
+##             &lt;int&gt;    &lt;int&gt;       &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;             
+##  1             72     2706      100573 2014-01-08 14:32:58 2015-01-01 00:00:00
+##  2            176     1870       40419 2014-01-14 02:33:55 2015-01-02 00:00:00
+##  3            190     1801        4819 2014-01-14 13:47:22 2015-01-01 00:00:00
+##  4            191     3422       53534 2014-01-14 14:22:49 2015-01-04 00:00:00
+##  5            194      521      138201 2014-01-14 15:39:34 2015-01-07 00:00:00
+##  6            240      986       17817 2014-01-16 20:41:57 2014-12-31 00:00:00
+##  7            289     3062       25934 2014-01-18 08:57:06 2015-01-06 00:00:00
+##  8            290     1032      306397 2014-01-18 12:59:36 2015-01-10 00:00:00
+##  9            302     3610      167932 2014-01-19 04:11:01 2015-01-07 00:00:00
+## 10            320     3141      486795 2014-01-19 16:37:50 2015-01-19 00:00:00
+## # ℹ 101,018 more rows
+## # ℹ 6 more variables: checkout_date &lt;dttm&gt;, length_of_stay &lt;int&gt;,
+## #   people_num &lt;int&gt;, total_price &lt;int&gt;, status &lt;chr&gt;, canceled_at &lt;dttm&gt;</code></pre>
+</div>
+</div>
+</div>
+<div id="対多の関係のテーブルの結合" class="section level2">
+<h2>7-2 1対多の関係のテーブルの結合</h2>
+<div id="q-ホテルマスタにホテルの売上と予約数を付与" class="section level3">
+<h3>Q: ホテルマスタにホテルの売上と予約数を付与</h3>
+<div id="not-awesome-1" class="section level4">
+<h4>Not Awesome</h4>
+<ol style="list-style-type: decimal">
+<li>hotel_id列を結合キーとしてhotelにreservationを左外部結合</li>
+<li>未キャンセルかつcheckout_dateの年が2019の行のみ抽出</li>
+<li>集計結果以外に結果に残す列を全て結合キーに指定してgroup by</li>
+</ol>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  <span class="fu">left_join</span>(reservation, <span class="at">by =</span> <span class="st">&quot;hotel_id&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>, <span class="fu">year</span>(checkout_date) <span class="sc">==</span> <span class="dv">2019</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>    <span class="at">total_price_sum =</span> <span class="fu">sum</span>(total_price),</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>    <span class="at">total_count =</span> <span class="fu">n</span>(),</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>    <span class="at">.by =</span> <span class="fu">c</span>(</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>      hotel_id, hotel_name, hotel_type, address_prefecture, address_city,</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>      address_town, address_zipcode, unit_price, user_rating</span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>      )</span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>    )</span></code></pre></div>
+<pre><code>## # A tibble: 4,527 × 11
+##    hotel_id hotel_name   hotel_type address_prefecture address_city address_town
+##       &lt;int&gt; &lt;chr&gt;        &lt;chr&gt;      &lt;chr&gt;              &lt;chr&gt;        &lt;chr&gt;       
+##  1        1 北飯岡ホテル ビジネス…  岩手県             盛岡市       北飯岡      
+##  2        3 小屋敷ペン…  民宿       青森県             黒石市       小屋敷      
+##  3        4 中後町民宿   民宿       愛知県             碧南市       中後町      
+##  4        5 鵜沼台ホテル ビジネス…  岐阜県             各務原市     鵜沼台      
+##  5        6 新町ホテル   ビジネス…  熊本県             宇土市       新町        
+##  6        8 大山町ペン…  民宿       神奈川県           相模原市緑区 大山町      
+##  7        9 新道ホテル   ビジネス…  北海道             上磯郡木古…  新道        
+##  8       10 下奈良上ノ…  旅館       京都府             八幡市       下奈良上ノ段
+##  9       11 前波町ペン…  民宿       福井県             福井市       前波町      
+## 10       12 岩出山重蔵…  旅館       宮城県             大崎市       岩出山重蔵  
+## # ℹ 4,517 more rows
+## # ℹ 5 more variables: address_zipcode &lt;chr&gt;, unit_price &lt;int&gt;,
+## #   user_rating &lt;dbl&gt;, total_price_sum &lt;int&gt;, total_count &lt;int&gt;</code></pre>
+</div>
+<div id="awesome-1" class="section level4">
+<h4>Awesome</h4>
+<ol style="list-style-type: decimal">
+<li>reservationから未キャンセルかつcheckout_dateの年が2019の行のみ抽出し、hotel_idを集約キーとしてgroup
+by集計</li>
+<li>hotel_id列を結合キーとして 1. の集計結果を左外部結合</li>
+<li>結合されなかった行の数値を0埋め</li>
+</ol>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>hotel <span class="sc">|&gt;</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>    reservation <span class="sc">|&gt;</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>, <span class="fu">year</span>(checkout_date) <span class="sc">==</span> <span class="dv">2019</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>      <span class="fu">summarise</span>(</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>        <span class="at">sum =</span> <span class="fu">sum</span>(total_price), </span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>        <span class="at">size =</span> <span class="fu">n</span>(),</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>        <span class="at">.by =</span> hotel_id</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>        ),</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">&quot;hotel_id&quot;</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>  <span class="fu">replace_na</span>(<span class="fu">list</span>(<span class="at">sum =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">0</span>))</span></code></pre></div>
+<pre><code>## # A tibble: 5,000 × 41
+##    hotel_id hotel_name   hotel_type address_prefecture address_city address_town
+##       &lt;int&gt; &lt;chr&gt;        &lt;chr&gt;      &lt;chr&gt;              &lt;chr&gt;        &lt;chr&gt;       
+##  1        1 北飯岡ホテル ビジネス…  岩手県             盛岡市       北飯岡      
+##  2        2 西二条南温…  リゾート…  北海道             中川郡美深町 西二条南    
+##  3        3 小屋敷ペン…  民宿       青森県             黒石市       小屋敷      
+##  4        4 中後町民宿   民宿       愛知県             碧南市       中後町      
+##  5        5 鵜沼台ホテル ビジネス…  岐阜県             各務原市     鵜沼台      
+##  6        6 新町ホテル   ビジネス…  熊本県             宇土市       新町        
+##  7        7 七ツ山リゾ…  リゾート…  宮崎県             東臼杵郡諸…  七ツ山      
+##  8        8 大山町ペン…  民宿       神奈川県           相模原市緑区 大山町      
+##  9        9 新道ホテル   ビジネス…  北海道             上磯郡木古…  新道        
+## 10       10 下奈良上ノ…  旅館       京都府             八幡市       下奈良上ノ段
+## # ℹ 4,990 more rows
+## # ℹ 35 more variables: address_zipcode &lt;chr&gt;, unit_price &lt;int&gt;,
+## #   user_rating &lt;dbl&gt;, tag_001 &lt;int&gt;, tag_002 &lt;int&gt;, tag_003 &lt;int&gt;,
+## #   tag_004 &lt;int&gt;, tag_005 &lt;int&gt;, tag_006 &lt;int&gt;, tag_007 &lt;int&gt;, tag_008 &lt;int&gt;,
+## #   tag_009 &lt;int&gt;, tag_010 &lt;int&gt;, tag_011 &lt;int&gt;, tag_012 &lt;int&gt;, tag_013 &lt;int&gt;,
+## #   tag_014 &lt;int&gt;, tag_015 &lt;int&gt;, tag_016 &lt;int&gt;, tag_017 &lt;int&gt;, tag_018 &lt;int&gt;,
+## #   tag_019 &lt;int&gt;, tag_020 &lt;int&gt;, tag_021 &lt;int&gt;, tag_022 &lt;int&gt;, …</code></pre>
+<p>また、right_joinを使うと思考の流れの通りに書ける。</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>, <span class="fu">year</span>(checkout_date) <span class="sc">==</span> <span class="dv">2019</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>    <span class="at">sum =</span> <span class="fu">sum</span>(total_price),</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>    <span class="at">size =</span> <span class="fu">n</span>(),</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>    <span class="at">.by =</span> hotel_id</span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a>  <span class="fu">right_join</span>(hotel, <span class="at">by =</span> <span class="st">&quot;hotel_id&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a>  <span class="fu">replace_na</span>(<span class="fu">list</span>(<span class="at">sum =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">0</span>))</span></code></pre></div>
+<pre><code>## # A tibble: 5,000 × 41
+##    hotel_id     sum  size hotel_name  hotel_type address_prefecture address_city
+##       &lt;int&gt;   &lt;int&gt; &lt;int&gt; &lt;chr&gt;       &lt;chr&gt;      &lt;chr&gt;              &lt;chr&gt;       
+##  1     2776 5785000   104 北郷ペンシ… 民宿       長野県             長野市      
+##  2     1908 3470100    74 仲手原ビジ… ビジネス…  神奈川県           横浜市港北区
+##  3     2093 1822800    55 浦島丘ビジ… ビジネス…  神奈川県           横浜市神奈… 
+##  4     2446 8297900   124 前ケ須町民… 民宿       愛知県             弥富市      
+##  5     4780 7170600   151 大手町民宿  民宿       東京都             千代田区    
+##  6     2419 5762500   124 本江東温泉… 旅館       富山県             射水市      
+##  7     4781 2724200   129 堀津町ペン… 民宿       岐阜県             羽島市      
+##  8     2127 3641400    87 下小田民宿  民宿       静岡県             焼津市      
+##  9     4902 2457000    73 犀川生立民… 民宿       福岡県             京都郡みや… 
+## 10     4335 2336000    93 斗賀ペンシ… 民宿       青森県             三戸郡南部町
+## # ℹ 4,990 more rows
+## # ℹ 34 more variables: address_town &lt;chr&gt;, address_zipcode &lt;chr&gt;,
+## #   unit_price &lt;int&gt;, user_rating &lt;dbl&gt;, tag_001 &lt;int&gt;, tag_002 &lt;int&gt;,
+## #   tag_003 &lt;int&gt;, tag_004 &lt;int&gt;, tag_005 &lt;int&gt;, tag_006 &lt;int&gt;, tag_007 &lt;int&gt;,
+## #   tag_008 &lt;int&gt;, tag_009 &lt;int&gt;, tag_010 &lt;int&gt;, tag_011 &lt;int&gt;, tag_012 &lt;int&gt;,
+## #   tag_013 &lt;int&gt;, tag_014 &lt;int&gt;, tag_015 &lt;int&gt;, tag_016 &lt;int&gt;, tag_017 &lt;int&gt;,
+## #   tag_018 &lt;int&gt;, tag_019 &lt;int&gt;, tag_020 &lt;int&gt;, tag_021 &lt;int&gt;, …</code></pre>
+</div>
+</div>
+</div>
+<div id="多対多の関係のテーブルの結合" class="section level2">
+<h2>7-3 多対多の関係のテーブルの結合</h2>
+<div id="q-顧客マスタに対して顧客のホテル種別ごとの予約数を付与" class="section level3">
+<h3>Q: 顧客マスタに対して、顧客のホテル種別ごとの予約数を付与</h3>
+<div id="awesome-2" class="section level4">
+<h4>Awesome</h4>
+<ol style="list-style-type: decimal">
+<li>reservationにhotelを左外部結合</li>
+<li>ホテル種別ごとのデータ数カウント用の列を作成</li>
+<li>customer_idごとにホテル種別ごとのデータ数をカウント</li>
+<li>customerに 1. 〜 3. の集計結果を左外部結合</li>
+<li>結合されなかった行の数値を0埋め</li>
+</ol>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>customer <span class="sc">|&gt;</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>    reservation <span class="sc">|&gt;</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>      <span class="fu">left_join</span>(</span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>        hotel <span class="sc">|&gt;</span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>          <span class="fu">select</span>(hotel_id, hotel_type),</span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>        <span class="at">by =</span> <span class="st">&quot;hotel_id&quot;</span></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a>        ) <span class="sc">|&gt;</span></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>      <span class="fu">mutate</span>(</span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>        <span class="at">ryokan_cnt =</span> hotel_type <span class="sc">==</span> <span class="st">&quot;旅館&quot;</span>,</span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a>        <span class="at">resort_hotel_cnt =</span> hotel_type <span class="sc">==</span> <span class="st">&quot;リゾートホテル&quot;</span>,</span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a>        <span class="at">business_hotel_cnt =</span> hotel_type <span class="sc">==</span> <span class="st">&quot;ビジネスホテル&quot;</span>,</span>
+<span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a>        <span class="at">minsyuku_cnt =</span> hotel_type <span class="sc">==</span> <span class="st">&quot;民宿&quot;</span></span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a>        ) <span class="sc">|&gt;</span></span>
+<span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a>      <span class="fu">summarise</span>(</span>
+<span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a>        <span class="fu">across</span>(</span>
+<span id="cb14-17"><a href="#cb14-17" tabindex="-1"></a>          <span class="fu">c</span>(ryokan_cnt, resort_hotel_cnt, business_hotel_cnt, minsyuku_cnt),</span>
+<span id="cb14-18"><a href="#cb14-18" tabindex="-1"></a>          sum</span>
+<span id="cb14-19"><a href="#cb14-19" tabindex="-1"></a>          ),</span>
+<span id="cb14-20"><a href="#cb14-20" tabindex="-1"></a>        <span class="at">.by =</span> customer_id</span>
+<span id="cb14-21"><a href="#cb14-21" tabindex="-1"></a>        ),</span>
+<span id="cb14-22"><a href="#cb14-22" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">&quot;customer_id&quot;</span></span>
+<span id="cb14-23"><a href="#cb14-23" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb14-24"><a href="#cb14-24" tabindex="-1"></a>  <span class="fu">replace_na</span>(</span>
+<span id="cb14-25"><a href="#cb14-25" tabindex="-1"></a>    <span class="fu">list</span>(</span>
+<span id="cb14-26"><a href="#cb14-26" tabindex="-1"></a>      <span class="at">ryokan_cnt =</span> <span class="dv">0</span>,</span>
+<span id="cb14-27"><a href="#cb14-27" tabindex="-1"></a>      <span class="at">resort_hotel_cnt =</span> <span class="dv">0</span>,</span>
+<span id="cb14-28"><a href="#cb14-28" tabindex="-1"></a>      <span class="at">business_hotel_cnt =</span> <span class="dv">0</span>,</span>
+<span id="cb14-29"><a href="#cb14-29" tabindex="-1"></a>      <span class="at">minsyuku_cnt =</span> <span class="dv">0</span></span>
+<span id="cb14-30"><a href="#cb14-30" tabindex="-1"></a>      )</span>
+<span id="cb14-31"><a href="#cb14-31" tabindex="-1"></a>    )</span></code></pre></div>
+<pre><code>## # A tibble: 500,000 × 12
+##    customer_id name       age sex   address_prefecture address_city address_town
+##          &lt;int&gt; &lt;chr&gt;    &lt;int&gt; &lt;chr&gt; &lt;chr&gt;              &lt;chr&gt;        &lt;chr&gt;       
+##  1           1 山田 裕…    75 &lt;NA&gt;  岐阜県             岐阜市       鷺山清洲町  
+##  2           2 藤井 稔     83 M     大阪府             豊能郡能勢町 地黄        
+##  3           3 青木 太…    62 M     佐賀県             佐賀市       本庄町袋    
+##  4           4 渡辺 裕…    28 M     福島県             喜多方市     豊川町高堂太
+##  5           5 渡辺 明…    62 F     兵庫県             西宮市       津門西口町  
+##  6           6 西村 知…    66 F     秋田県             仙北郡美郷町 佐野        
+##  7           7 斉藤 七…    34 F     高知県             長岡郡大豊町 日浦        
+##  8           8 村上 明…    81 F     北海道             夕張市       南部青葉町  
+##  9           9 鈴木 直…    57 &lt;NA&gt;  京都府             京都市左京区 上高野石田町
+## 10          10 佐藤 舞     59 F     神奈川県           伊勢原市     下糟屋      
+## # ℹ 499,990 more rows
+## # ℹ 5 more variables: address_zipcode &lt;chr&gt;, ryokan_cnt &lt;int&gt;,
+## #   resort_hotel_cnt &lt;int&gt;, business_hotel_cnt &lt;int&gt;, minsyuku_cnt &lt;int&gt;</code></pre>
+</div>
+</div>
+</div>
+<div id="すべての結合の組み合わせの生成" class="section level2">
+<h2>7-4 すべての結合の組み合わせの生成</h2>
+<div id="q-顧客ごとの月別の売上を計算売上のない月も出力" class="section level3">
+<h3>Q: 顧客ごとの月別の売上を計算（売上のない月も出力）</h3>
+<div id="awesome-3" class="section level4">
+<h4>Awesome</h4>
+<ol style="list-style-type: decimal">
+<li>1ヶ月間隔の時系列を生成</li>
+<li>customerに対して月の時系列をクロス結合し、customer_idごとに全ての月の行を生成</li>
+<li>未キャンセルデータを抽出</li>
+<li>checkout_dateを月に変換</li>
+<li>customer_idとmonthごとにtotal_priceの総和を計算</li>
+<li><ol start="2" style="list-style-type: decimal">
+<li>のデータに対して 3. ～ 5. の集計結果を左外部結合</li>
+</ol></li>
+<li>結合されなかった行の数値を0埋め</li>
+</ol>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>  <span class="at">month =</span> <span class="fu">seq</span>(<span class="fu">ymd</span>(<span class="st">&quot;2019-01-01&quot;</span>), <span class="fu">ymd</span>(<span class="st">&quot;2019-12-01&quot;</span>), <span class="at">by =</span> <span class="st">&quot;1 month&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>    <span class="fu">floor_date</span>(<span class="st">&quot;month&quot;</span>)</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>  <span class="fu">cross_join</span>(customer) <span class="sc">|&gt;</span></span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a>    reservation <span class="sc">|&gt;</span></span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">filter</span>(status <span class="sc">!=</span> <span class="st">&quot;canceled&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">floor_date</span>(checkout_date, <span class="st">&quot;month&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a>      <span class="fu">summarise</span>(</span>
+<span id="cb16-11"><a href="#cb16-11" tabindex="-1"></a>        <span class="at">total_price =</span> <span class="fu">sum</span>(total_price),</span>
+<span id="cb16-12"><a href="#cb16-12" tabindex="-1"></a>        <span class="at">.by =</span> <span class="fu">c</span>(customer_id, month)</span>
+<span id="cb16-13"><a href="#cb16-13" tabindex="-1"></a>        ),</span>
+<span id="cb16-14"><a href="#cb16-14" tabindex="-1"></a>    <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;customer_id&quot;</span>, <span class="st">&quot;month&quot;</span>)</span>
+<span id="cb16-15"><a href="#cb16-15" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb16-16"><a href="#cb16-16" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">total_price =</span> <span class="fu">replace_na</span>(total_price, <span class="dv">0</span>))</span></code></pre></div>
+<pre><code>## # A tibble: 6,000,000 × 10
+##    month               customer_id name        age sex   address_prefecture
+##    &lt;dttm&gt;                    &lt;int&gt; &lt;chr&gt;     &lt;int&gt; &lt;chr&gt; &lt;chr&gt;             
+##  1 2019-01-01 00:00:00           1 山田 裕太    75 &lt;NA&gt;  岐阜県            
+##  2 2019-01-01 00:00:00           2 藤井 稔      83 M     大阪府            
+##  3 2019-01-01 00:00:00           3 青木 太一    62 M     佐賀県            
+##  4 2019-01-01 00:00:00           4 渡辺 裕太    28 M     福島県            
+##  5 2019-01-01 00:00:00           5 渡辺 明美    62 F     兵庫県            
+##  6 2019-01-01 00:00:00           6 西村 知実    66 F     秋田県            
+##  7 2019-01-01 00:00:00           7 斉藤 七夏    34 F     高知県            
+##  8 2019-01-01 00:00:00           8 村上 明美    81 F     北海道            
+##  9 2019-01-01 00:00:00           9 鈴木 直子    57 &lt;NA&gt;  京都府            
+## 10 2019-01-01 00:00:00          10 佐藤 舞      59 F     神奈川県          
+## # ℹ 5,999,990 more rows
+## # ℹ 4 more variables: address_city &lt;chr&gt;, address_town &lt;chr&gt;,
+## #   address_zipcode &lt;chr&gt;, total_price &lt;int&gt;</code></pre>
+</div>
+</div>
+</div>
+<div id="不等式条件での結合" class="section level2">
+<h2>7-5 不等式条件での結合</h2>
+<div id="q-予約履歴データにキャンペーン情報を付与" class="section level3">
+<h3>Q: 予約履歴データにキャンペーン情報を付与</h3>
+<div id="not-awesome-2" class="section level4">
+<h4>Not Awesome</h4>
+<ol style="list-style-type: decimal">
+<li>reservationにcampaignをクロス結合</li>
+<li>reservationのreserved_atがcampaignのstarts_atとends_atの間にある行のみ抽出</li>
+<li>不要な列を削除</li>
+</ol>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>  <span class="fu">cross_join</span>(campaign) <span class="sc">|&gt;</span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(reserved_at <span class="sc">&gt;=</span> starts_at <span class="sc">&amp;</span> reserved_at <span class="sc">&lt;=</span> ends_at) <span class="sc">|&gt;</span></span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">!</span><span class="fu">c</span>(starts_at, ends_at))</span></code></pre></div>
+<pre><code>## # A tibble: 1,108,427 × 12
+##    reservation_id hotel_id customer_id reserved_at         checkin_date       
+##             &lt;int&gt;    &lt;int&gt;       &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;             
+##  1         195407     1314      302805 2015-01-01 00:01:39 2015-12-22 00:00:00
+##  2         195408     2432      200606 2015-01-01 00:07:04 2015-07-05 00:00:00
+##  3         195409     4988      366673 2015-01-01 00:07:20 2015-08-14 00:00:00
+##  4         195410     2805      384310 2015-01-01 00:09:55 2015-08-12 00:00:00
+##  5         195411     1522      373894 2015-01-01 00:10:07 2015-03-13 00:00:00
+##  6         195412     4659      215655 2015-01-01 00:10:49 2015-03-07 00:00:00
+##  7         195413     1899      448346 2015-01-01 00:11:20 2015-05-26 00:00:00
+##  8         195414     3294      461204 2015-01-01 00:12:33 2015-04-08 00:00:00
+##  9         195415      814       72390 2015-01-01 00:13:07 2015-10-26 00:00:00
+## 10         195416     2499      263925 2015-01-01 00:13:52 2015-03-18 00:00:00
+## # ℹ 1,108,417 more rows
+## # ℹ 7 more variables: checkout_date &lt;dttm&gt;, length_of_stay &lt;int&gt;,
+## #   people_num &lt;int&gt;, total_price &lt;int&gt;, status &lt;chr&gt;, canceled_at &lt;dttm&gt;,
+## #   campaign_name &lt;chr&gt;</code></pre>
+</div>
+<div id="awesome-4" class="section level4">
+<h4>Awesome</h4>
+<ol style="list-style-type: decimal">
+<li>campaignのstarts_atとends_atから、その間の日付の時系列を作成し、reserve_date列に割り当てます。</li>
+<li>reserve_dateを結合キーとしてキャンペーンマスタと結合</li>
+<li>不要な列を削除</li>
+</ol>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>campaign_expanded <span class="ot">&lt;-</span> campaign <span class="sc">|&gt;</span></span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  <span class="fu">rowwise</span>() <span class="sc">|&gt;</span></span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>    <span class="at">reserve_date =</span> <span class="fu">list</span>(<span class="fu">seq</span>(<span class="fu">date</span>(starts_at), <span class="fu">date</span>(ends_at), <span class="at">by=</span><span class="st">&quot;day&quot;</span>))</span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a>  <span class="fu">unnest</span>(reserve_date)</span>
+<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a></span>
+<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb20-9"><a href="#cb20-9" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">reserve_date =</span> <span class="fu">date</span>(reserved_at)) <span class="sc">|&gt;</span></span>
+<span id="cb20-10"><a href="#cb20-10" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb20-11"><a href="#cb20-11" tabindex="-1"></a>    campaign_expanded,</span>
+<span id="cb20-12"><a href="#cb20-12" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">&quot;reserve_date&quot;</span>,</span>
+<span id="cb20-13"><a href="#cb20-13" tabindex="-1"></a>    <span class="at">relationship =</span> <span class="st">&quot;many-to-many&quot;</span></span>
+<span id="cb20-14"><a href="#cb20-14" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb20-15"><a href="#cb20-15" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">!</span>reserve_date)</span></code></pre></div>
+<pre><code>## # A tibble: 2,000,000 × 14
+##    reservation_id hotel_id customer_id reserved_at         checkin_date       
+##             &lt;int&gt;    &lt;int&gt;       &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;             
+##  1              1     2460       53431 2013-12-31 07:00:14 2014-12-31 00:00:00
+##  2              2      962      488390 2013-12-31 08:23:35 2014-12-31 00:00:00
+##  3              3      558      341335 2013-12-31 09:02:05 2014-12-31 00:00:00
+##  4              4     3666      398981 2013-12-31 23:44:54 2014-12-31 00:00:00
+##  5              5     2180      220381 2014-01-01 02:47:50 2014-12-31 00:00:00
+##  6              6      974        1494 2014-01-01 07:56:58 2015-01-01 00:00:00
+##  7              7     2260       24104 2014-01-01 13:17:06 2014-12-30 00:00:00
+##  8              8      314      124883 2014-01-01 14:22:01 2014-12-31 00:00:00
+##  9              9     2211       45282 2014-01-01 14:59:04 2014-12-31 00:00:00
+## 10             10      333      390595 2014-01-01 20:24:34 2014-12-30 00:00:00
+## # ℹ 1,999,990 more rows
+## # ℹ 9 more variables: checkout_date &lt;dttm&gt;, length_of_stay &lt;int&gt;,
+## #   people_num &lt;int&gt;, total_price &lt;int&gt;, status &lt;chr&gt;, canceled_at &lt;dttm&gt;,
+## #   campaign_name &lt;chr&gt;, starts_at &lt;dttm&gt;, ends_at &lt;dttm&gt;</code></pre>
 <p>以上です。</p>
-<p><a href="ch07_join_tidyverse.Rmd">第7章 結合</a></p>
-<p><a href="ch05_select_tidyverse.html">第5章 抽出</a></p>
+<p>第8章 分割</p>
+<p><a href="ch06_aggregate_tidyverse.html">第6章 集約</a></p>
 <p><a href="index.html">Top</a></p>
 </div>
 </div>
