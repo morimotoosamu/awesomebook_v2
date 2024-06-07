@@ -13,7 +13,7 @@
 
 <meta name="date" content="2024-06-07" />
 
-<title>『改訂新版前処理大全』のR言語(Tidyverse)版サンプルコード</title>
+<title>第12章 日時</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1550,49 +1550,354 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">『改訂新版前処理大全』のR言語(Tidyverse)版サンプルコード</h1>
+<h1 class="title toc-ignore">第12章 日時</h1>
 <h4 class="author">Osamu Morimoto</h4>
 <h4 class="date">2024-06-07</h4>
 
 </div>
 
 
-<div id="はじめに" class="section level2">
-<h2>はじめに</h2>
-<p>このページでは<a href="https://gihyo.jp/book/2024/978-4-297-14138-7">『改訂新版前処理大全』</a>の<a href="https://www.r-project.org/">R言語</a>の<a href="https://www.tidyverse.org/">Tidyverse</a>によるサンプルコードを公開しています。</p>
-<ul>
-<li><a href="ch05_select_tidyverse.html">第5章 抽出</a></li>
-<li><a href="ch06_aggregate_tidyverse.html">第6章 集約</a></li>
-<li><a href="ch07_join_tidyverse.html">第7章 結合</a></li>
-<li><a href="ch08_split_tidyverse.html">第8章 分割</a></li>
-<li><a href="ch09_reshaping_tidyverse.html">第9章 整形</a></li>
-<li><a href="ch10_number_tidyverse.html">第10章 数値</a></li>
-<li><a href="ch11_category_tidyverse.html">第11章 カテゴリ</a></li>
-<li><a href="ch12_datetime_tidyverse.html">第12章 日時</a></li>
-<li>第13章 文字列</li>
-<li>第14章 ウィンドウ関数</li>
-<li>第15章 演習問題</li>
-</ul>
-<p>また、本書ではサンプルデータが<a href="https://parquet.apache.org/">Apache
-Parquet</a>形式で提供されています。</p>
-<p>本編では汎用性を考慮してこれを一般的なデータフレームに変換して扱っています。</p>
-<p>しかし、これを arrow
-tableとして処理すると非常に高速な処理が可能になります。</p>
-<p>以下のページではサンプルデータを arrow
-tableとして処理する方法について簡単に解説します。</p>
-<ul>
-<li><a href="apache_parquet.html">Apache Parquet
-による前処理の高速化</a></li>
-</ul>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(conflicted)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div>
+<pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+## ✔ dplyr     1.1.4     ✔ readr     2.1.5
+## ✔ forcats   1.0.0     ✔ stringr   1.5.1
+## ✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+## ✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+## ✔ purrr     1.0.2</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co"># ファイルの読み込み</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>reservation <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/reservation.parquet&quot;</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>holiday     <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/holiday.parquet&quot;</span>)</span></code></pre></div>
+<p>日時の処理は<a href="https://lubridate.tidyverse.org/">lubridate</a>パッケージの出番。tidyverseに含まれています。</p>
+<hr />
+<div id="日時型への変換" class="section level3">
+<h3>12-1 日時型への変換</h3>
+<div id="q-文字列の日時を日時型に変換" class="section level4">
+<h4>Q: 文字列の日時を日時型に変換</h4>
+<p>tz-naiveなtimestampはRでは使えないみたい。</p>
+<p>####Awesome</p>
+<p><code>force_tz()</code>と<code>with_tz()</code>の使い分けに気を付けましょう。</p>
+<p><a href="https://dichika.hateblo.jp/entry/2021/04/23/105820">timezoneだけを変換する場合はforce_tzで時刻も変換する場合はwith_tz</a></p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">datetime_str =</span> <span class="st">&quot;2023-04-01 10:11:30&quot;</span>) <span class="sc">|&gt;</span> <span class="co">#文字列</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>    <span class="co"># （1）日時型（POSIXct型）へ変換。タイムゾーンはUTC。</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="at">timestamp_naive =</span> datetime_str <span class="sc">|&gt;</span> <span class="fu">ymd_hms</span>(),</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="co"># （2）日付のみに変換</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="at">date =</span> datetime_str <span class="sc">|&gt;</span> <span class="fu">date</span>(),</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="co"># （3）timeのみ</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>    <span class="at">time =</span> datetime_str <span class="sc">|&gt;</span> <span class="fu">ymd_hms</span>() <span class="sc">|&gt;</span> <span class="fu">format</span>(<span class="st">&quot;%H:%M:%S&quot;</span>) <span class="sc">|&gt;</span> <span class="fu">hms</span>(),</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>    <span class="co"># （4）TZのみをJSTへ変換</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>    <span class="at">timestamp_jst =</span> datetime_str <span class="sc">|&gt;</span> <span class="fu">ymd_hms</span>() <span class="sc">|&gt;</span> <span class="fu">force_tz</span>(<span class="at">tzone =</span> <span class="st">&quot;Asia/Tokyo&quot;</span>),</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>    <span class="co"># （5）TZを変換し時刻も合わせる (PST)</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>    <span class="at">timestamp_pst =</span> datetime_str <span class="sc">|&gt;</span> <span class="fu">ymd_hms</span>() <span class="sc">|&gt;</span> <span class="fu">with_tz</span>(<span class="at">tzone =</span> <span class="st">&quot;America/Los_Angeles&quot;</span>)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  )</span></code></pre></div>
+<pre><code>## # A tibble: 1 × 6
+##   datetime_str    timestamp_naive     date       time        timestamp_jst      
+##   &lt;chr&gt;           &lt;dttm&gt;              &lt;date&gt;     &lt;Period&gt;    &lt;dttm&gt;             
+## 1 2023-04-01 10:… 2023-04-01 10:11:30 2023-04-01 10H 11M 30S 2023-04-01 10:11:30
+## # ℹ 1 more variable: timestamp_pst &lt;dttm&gt;</code></pre>
 <hr />
 </div>
-<div id="事前準備" class="section level2">
-<h2>事前準備</h2>
-<p>サンプルコードの実行に必要なパッケージ類は事前にインストールしておいてください。</p>
-<p>以下のコードで必要なパッケージがインストールされます。</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;tidyverse&quot;</span>, <span class="st">&quot;conflicted&quot;</span>, <span class="st">&quot;arrow&quot;</span>))</span></code></pre></div>
+</div>
+<div id="日時型の列を用いた行の抽出" class="section level2">
+<h2>12-2 日時型の列を用いた行の抽出</h2>
+<div id="q-指定期間に予約された予約履歴の抽出" class="section level3">
+<h3>Q: 指定期間に予約された予約履歴の抽出</h3>
+<div id="not-awesome" class="section level4">
+<h4>Not Awesome</h4>
+<p>reserved_atは時刻まで含むデータなので、日付だけで指定すると<code>2019-08-31</code>は<code>2019-08-31 00:00:00</code>扱いになるため、<code>2019-08-31</code>のほとんどのデータが取得できない。</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="fu">between</span>(reserved_at, <span class="fu">ymd</span>(<span class="st">&quot;2019-07-01&quot;</span>), <span class="fu">ymd</span>(<span class="st">&quot;2019-08-31&quot;</span>)))</span></code></pre></div>
+<pre><code>## # A tibble: 28,028 × 11
+##    reservation_id hotel_id customer_id reserved_at         checkin_date       
+##             &lt;int&gt;    &lt;int&gt;       &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;             
+##  1        1953282     4721       56333 2019-07-01 00:00:36 2019-10-11 00:00:00
+##  2        1953283     4766      146511 2019-07-01 00:04:32 2019-12-23 00:00:00
+##  3        1953284     3448      471762 2019-07-01 00:05:28 2019-11-04 00:00:00
+##  4        1953285     4221      288717 2019-07-01 00:05:40 2019-07-12 00:00:00
+##  5        1953286     4918      247560 2019-07-01 00:05:51 2019-08-22 00:00:00
+##  6        1953287     2296       39178 2019-07-01 00:06:37 2019-08-09 00:00:00
+##  7        1953288     2791      309925 2019-07-01 00:06:57 2019-08-30 00:00:00
+##  8        1953289     3003      424273 2019-07-01 00:10:57 2019-08-13 00:00:00
+##  9        1953290     1324      337280 2019-07-01 00:19:40 2019-10-06 00:00:00
+## 10        1953291      788      497384 2019-07-01 00:20:52 2019-10-13 00:00:00
+## # ℹ 28,018 more rows
+## # ℹ 6 more variables: checkout_date &lt;dttm&gt;, length_of_stay &lt;int&gt;,
+## #   people_num &lt;int&gt;, total_price &lt;int&gt;, status &lt;chr&gt;, canceled_at &lt;dttm&gt;</code></pre>
+</div>
+<div id="awesome" class="section level4">
+<h4>Awesome</h4>
+<p>reserved_atを日付のみのデータに変換することで解決。</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>test3 <span class="ot">&lt;-</span> reservation <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="fu">between</span>(<span class="fu">date</span>(reserved_at), <span class="fu">ymd</span>(<span class="st">&quot;2019-07-01&quot;</span>), <span class="fu">ymd</span>(<span class="st">&quot;2019-08-31&quot;</span>)))</span></code></pre></div>
 <hr />
-<p>以上。</p>
+</div>
+</div>
+</div>
+<div id="日時要素の抽出" class="section level2">
+<h2>12-3 日時要素の抽出</h2>
+<div id="q-予約日時の日時要素を抽出" class="section level3">
+<h3>Q: 予約日時の日時要素を抽出</h3>
+<div id="not-awesome-1" class="section level4">
+<h4>Not Awesome</h4>
+<p>年月を抽出するのに<code>format()</code>を使うと処理が遅い。</p>
+<p><code>sprintf()</code> の方が速い。</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>  <span class="fu">select</span>(reserved_at) <span class="sc">|&gt;</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>    <span class="co"># （1） 年を抽出</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>    <span class="at">reserved_at_year =</span> <span class="fu">year</span>(reserved_at),</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>    <span class="co"># （2） 月を抽出</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>    <span class="at">reserved_at_month =</span> <span class="fu">month</span>(reserved_at),</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>    <span class="co"># （3） 日を抽出</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>    <span class="at">reserved_at_day =</span> <span class="fu">day</span>(reserved_at),</span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>    <span class="co"># （4） 曜日を抽出 （週の最初を月曜日とした1〜7の数字）</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>    <span class="at">reserved_at_dayofweek =</span> <span class="fu">wday</span>(reserved_at),</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>    <span class="co"># （5） 週を抽出 （ISO 8601形式の週番号）</span></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>    <span class="at">reserved_at_isoweek =</span> <span class="fu">isoweek</span>(reserved_at),</span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>    <span class="co"># （6） 時を抽出</span></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>    <span class="at">reserved_at_hour =</span> <span class="fu">hour</span>(reserved_at),</span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>    <span class="co"># （7） 分を抽出</span></span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>    <span class="at">reserved_at_minute =</span> <span class="fu">minute</span>(reserved_at),</span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a>    <span class="co"># （8） 秒を抽出</span></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>    <span class="at">reserved_at_second =</span> <span class="fu">second</span>(reserved_at),</span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a>    <span class="co"># （9） 年月を抽出</span></span>
+<span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a>    <span class="at">reserved_at_ym =</span> <span class="fu">format</span>(reserved_at, <span class="st">&quot;%Y-%m&quot;</span>)</span>
+<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a>  )</span></code></pre></div>
+<pre><code>## # A tibble: 2,000,000 × 10
+##    reserved_at         reserved_at_year reserved_at_month reserved_at_day
+##    &lt;dttm&gt;                         &lt;dbl&gt;             &lt;dbl&gt;           &lt;int&gt;
+##  1 2013-12-31 07:00:14             2013                12              31
+##  2 2013-12-31 08:23:35             2013                12              31
+##  3 2013-12-31 09:02:05             2013                12              31
+##  4 2013-12-31 23:44:54             2013                12              31
+##  5 2014-01-01 02:47:50             2014                 1               1
+##  6 2014-01-01 07:56:58             2014                 1               1
+##  7 2014-01-01 13:17:06             2014                 1               1
+##  8 2014-01-01 14:22:01             2014                 1               1
+##  9 2014-01-01 14:59:04             2014                 1               1
+## 10 2014-01-01 20:24:34             2014                 1               1
+## # ℹ 1,999,990 more rows
+## # ℹ 6 more variables: reserved_at_dayofweek &lt;dbl&gt;, reserved_at_isoweek &lt;dbl&gt;,
+## #   reserved_at_hour &lt;int&gt;, reserved_at_minute &lt;int&gt;, reserved_at_second &lt;dbl&gt;,
+## #   reserved_at_ym &lt;chr&gt;</code></pre>
+</div>
+<div id="awesome-1" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>  <span class="fu">select</span>(reserved_at) <span class="sc">|&gt;</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>    <span class="co"># （1） 年を抽出</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>    <span class="at">reserved_at_year =</span> <span class="fu">year</span>(reserved_at),</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>    <span class="co"># （2） 月を抽出</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>    <span class="at">reserved_at_month =</span> <span class="fu">month</span>(reserved_at),</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>    <span class="co"># （3） 日を抽出</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>    <span class="at">reserved_at_day =</span> <span class="fu">day</span>(reserved_at),</span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>    <span class="co"># （4） 曜日を抽出 （週の最初を月曜日とした0〜6の数字）</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>    <span class="at">reserved_at_dayofweek =</span> <span class="fu">wday</span>(reserved_at, <span class="at">week_start =</span> <span class="dv">1</span>) <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>    <span class="co"># （5） 週を抽出 （ISO 8601形式の週番号）</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>    <span class="at">reserved_at_isoweek =</span> <span class="fu">isoweek</span>(reserved_at),</span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>    <span class="co"># （6） 時を抽出</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>    <span class="at">reserved_at_hour =</span> <span class="fu">hour</span>(reserved_at),</span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a>    <span class="co"># （7） 分を抽出</span></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a>    <span class="at">reserved_at_minute =</span> <span class="fu">minute</span>(reserved_at),</span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a>    <span class="co"># （8） 秒を抽出</span></span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a>    <span class="at">reserved_at_second =</span> <span class="fu">second</span>(reserved_at),</span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a>    <span class="co"># （9） 年月を抽出</span></span>
+<span id="cb11-21"><a href="#cb11-21" tabindex="-1"></a>    <span class="at">reserved_at_ym =</span> <span class="fu">sprintf</span>(<span class="st">&quot;%04d-%02d&quot;</span>, <span class="fu">year</span>(reserved_at), <span class="fu">month</span>(reserved_at))</span>
+<span id="cb11-22"><a href="#cb11-22" tabindex="-1"></a>  )</span></code></pre></div>
+<pre><code>## # A tibble: 2,000,000 × 10
+##    reserved_at         reserved_at_year reserved_at_month reserved_at_day
+##    &lt;dttm&gt;                         &lt;dbl&gt;             &lt;dbl&gt;           &lt;int&gt;
+##  1 2013-12-31 07:00:14             2013                12              31
+##  2 2013-12-31 08:23:35             2013                12              31
+##  3 2013-12-31 09:02:05             2013                12              31
+##  4 2013-12-31 23:44:54             2013                12              31
+##  5 2014-01-01 02:47:50             2014                 1               1
+##  6 2014-01-01 07:56:58             2014                 1               1
+##  7 2014-01-01 13:17:06             2014                 1               1
+##  8 2014-01-01 14:22:01             2014                 1               1
+##  9 2014-01-01 14:59:04             2014                 1               1
+## 10 2014-01-01 20:24:34             2014                 1               1
+## # ℹ 1,999,990 more rows
+## # ℹ 6 more variables: reserved_at_dayofweek &lt;dbl&gt;, reserved_at_isoweek &lt;dbl&gt;,
+## #   reserved_at_hour &lt;int&gt;, reserved_at_minute &lt;int&gt;, reserved_at_second &lt;dbl&gt;,
+## #   reserved_at_ym &lt;chr&gt;</code></pre>
+<hr />
+</div>
+</div>
+</div>
+<div id="日時の丸め処理" class="section level2">
+<h2>12-4 日時の丸め処理</h2>
+<div id="q-予約日時の切り捨て" class="section level3">
+<h3>Q: 予約日時の切り捨て</h3>
+<div id="awesome-2" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="fu">select</span>(reserved_at) <span class="sc">|&gt;</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>    <span class="co"># （1）年に切り捨て</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>    <span class="at">reserved_at_year =</span> <span class="fu">floor_date</span>(reserved_at, <span class="at">unit =</span> <span class="st">&quot;year&quot;</span>),</span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>    <span class="co"># （2）四半期に切り捨て</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>    <span class="at">reserved_at_quarter =</span> <span class="fu">floor_date</span>(reserved_at, <span class="at">unit =</span> <span class="st">&quot;quarter&quot;</span>),</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>    <span class="co"># （3）月に切り捨て</span></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>    <span class="at">reserved_at_month =</span> <span class="fu">floor_date</span>(reserved_at, <span class="at">unit =</span> <span class="st">&quot;month&quot;</span>),</span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a>    <span class="co"># （4）日に切り捨て</span></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a>    <span class="at">reserved_at_day =</span> <span class="fu">floor_date</span>(reserved_at, <span class="at">unit =</span> <span class="st">&quot;day&quot;</span>),</span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>    <span class="co"># （5）時に切り捨て</span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a>    <span class="at">reserved_at_hour =</span> <span class="fu">floor_date</span>(reserved_at, <span class="at">unit =</span> <span class="st">&quot;hour&quot;</span>),</span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>    <span class="co"># （6）分に切り捨て</span></span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a>    <span class="at">reserved_at_minute =</span> <span class="fu">floor_date</span>(reserved_at, <span class="at">unit =</span> <span class="st">&quot;minute&quot;</span>)</span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a>  )</span></code></pre></div>
+<pre><code>## # A tibble: 2,000,000 × 7
+##    reserved_at         reserved_at_year    reserved_at_quarter
+##    &lt;dttm&gt;              &lt;dttm&gt;              &lt;dttm&gt;             
+##  1 2013-12-31 07:00:14 2013-01-01 00:00:00 2013-10-01 00:00:00
+##  2 2013-12-31 08:23:35 2013-01-01 00:00:00 2013-10-01 00:00:00
+##  3 2013-12-31 09:02:05 2013-01-01 00:00:00 2013-10-01 00:00:00
+##  4 2013-12-31 23:44:54 2013-01-01 00:00:00 2013-10-01 00:00:00
+##  5 2014-01-01 02:47:50 2014-01-01 00:00:00 2014-01-01 00:00:00
+##  6 2014-01-01 07:56:58 2014-01-01 00:00:00 2014-01-01 00:00:00
+##  7 2014-01-01 13:17:06 2014-01-01 00:00:00 2014-01-01 00:00:00
+##  8 2014-01-01 14:22:01 2014-01-01 00:00:00 2014-01-01 00:00:00
+##  9 2014-01-01 14:59:04 2014-01-01 00:00:00 2014-01-01 00:00:00
+## 10 2014-01-01 20:24:34 2014-01-01 00:00:00 2014-01-01 00:00:00
+## # ℹ 1,999,990 more rows
+## # ℹ 4 more variables: reserved_at_month &lt;dttm&gt;, reserved_at_day &lt;dttm&gt;,
+## #   reserved_at_hour &lt;dttm&gt;, reserved_at_minute &lt;dttm&gt;</code></pre>
+<hr />
+</div>
+</div>
+</div>
+<div id="日時の加減算" class="section level2">
+<h2>12-5 日時の加減算</h2>
+<div id="q-予約日時に一定時間を加算" class="section level3">
+<h3>Q: 予約日時に一定時間を加算</h3>
+<div id="awesome-3" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>  <span class="fu">select</span>(reserved_at) <span class="sc">|&gt;</span></span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a>    <span class="co"># （1） 30分を加算</span></span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>    <span class="at">reserved_at_add30min =</span> reserved_at <span class="sc">+</span> <span class="fu">minutes</span>(<span class="dv">30</span>),</span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a>    <span class="co"># （2） 1時間を加算</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a>    <span class="at">reserved_at_add1h =</span> reserved_at <span class="sc">+</span> <span class="fu">hours</span>(<span class="dv">1</span>),</span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a>    <span class="co"># （3） 1日を加算</span></span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a>    <span class="at">reserved_at_add1d =</span> reserved_at <span class="sc">+</span> <span class="fu">days</span>(<span class="dv">1</span>),</span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a>    <span class="co"># （4） 1ヶ月を加算</span></span>
+<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a>    <span class="at">reserved_at_add1m =</span> reserved_at <span class="sc">+</span> <span class="fu">months</span>(<span class="dv">1</span>),    </span>
+<span id="cb15-12"><a href="#cb15-12" tabindex="-1"></a>    <span class="co"># （5） 1年を加算</span></span>
+<span id="cb15-13"><a href="#cb15-13" tabindex="-1"></a>    <span class="at">reserved_at_add1y2 =</span> reserved_at <span class="sc">+</span> <span class="fu">years</span>(<span class="dv">1</span>)</span>
+<span id="cb15-14"><a href="#cb15-14" tabindex="-1"></a>  )</span></code></pre></div>
+<pre><code>## # A tibble: 2,000,000 × 6
+##    reserved_at         reserved_at_add30min reserved_at_add1h  
+##    &lt;dttm&gt;              &lt;dttm&gt;               &lt;dttm&gt;             
+##  1 2013-12-31 07:00:14 2013-12-31 07:30:14  2013-12-31 08:00:14
+##  2 2013-12-31 08:23:35 2013-12-31 08:53:35  2013-12-31 09:23:35
+##  3 2013-12-31 09:02:05 2013-12-31 09:32:05  2013-12-31 10:02:05
+##  4 2013-12-31 23:44:54 2014-01-01 00:14:54  2014-01-01 00:44:54
+##  5 2014-01-01 02:47:50 2014-01-01 03:17:50  2014-01-01 03:47:50
+##  6 2014-01-01 07:56:58 2014-01-01 08:26:58  2014-01-01 08:56:58
+##  7 2014-01-01 13:17:06 2014-01-01 13:47:06  2014-01-01 14:17:06
+##  8 2014-01-01 14:22:01 2014-01-01 14:52:01  2014-01-01 15:22:01
+##  9 2014-01-01 14:59:04 2014-01-01 15:29:04  2014-01-01 15:59:04
+## 10 2014-01-01 20:24:34 2014-01-01 20:54:34  2014-01-01 21:24:34
+## # ℹ 1,999,990 more rows
+## # ℹ 3 more variables: reserved_at_add1d &lt;dttm&gt;, reserved_at_add1m &lt;dttm&gt;,
+## #   reserved_at_add1y2 &lt;dttm&gt;</code></pre>
+</div>
+</div>
+<div id="q-予約日時とチェックイン日の時間差を計算" class="section level3">
+<h3>Q: 予約日時とチェックイン日の時間差を計算</h3>
+<div id="awesome-4" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>  <span class="fu">select</span>(reserved_at, checkin_date) <span class="sc">|&gt;</span></span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>    <span class="co"># 年数差を計算</span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>    <span class="at">diff_years =</span> <span class="fu">interval</span>(reserved_at, checkin_date) <span class="sc">|&gt;</span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>      <span class="fu">time_length</span>(<span class="st">&quot;years&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>      <span class="fu">as.integer</span>(),</span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a>    <span class="co"># 月数差を計算</span></span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a>    <span class="at">diff_months =</span> <span class="fu">interval</span>(reserved_at, checkin_date) <span class="sc">|&gt;</span></span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a>      <span class="fu">time_length</span>(<span class="st">&quot;months&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a>      <span class="fu">as.integer</span>(),</span>
+<span id="cb17-12"><a href="#cb17-12" tabindex="-1"></a>    <span class="co"># 日数差を計算</span></span>
+<span id="cb17-13"><a href="#cb17-13" tabindex="-1"></a>    <span class="at">diff_days =</span> <span class="fu">as.integer</span>(<span class="fu">difftime</span>(checkin_date, reserved_at, <span class="at">units =</span> <span class="st">&quot;days&quot;</span>)),</span>
+<span id="cb17-14"><a href="#cb17-14" tabindex="-1"></a>    <span class="co"># 時間差を計算</span></span>
+<span id="cb17-15"><a href="#cb17-15" tabindex="-1"></a>    <span class="at">diff_hours =</span> <span class="fu">as.integer</span>(<span class="fu">difftime</span>(checkin_date, reserved_at, <span class="at">units =</span> <span class="st">&quot;hours&quot;</span>)),</span>
+<span id="cb17-16"><a href="#cb17-16" tabindex="-1"></a>    <span class="co"># 分差を計算</span></span>
+<span id="cb17-17"><a href="#cb17-17" tabindex="-1"></a>    <span class="at">diff_minutes =</span> <span class="fu">as.integer</span>(<span class="fu">difftime</span>(checkin_date, reserved_at, <span class="at">units =</span> <span class="st">&quot;mins&quot;</span>)),</span>
+<span id="cb17-18"><a href="#cb17-18" tabindex="-1"></a>    <span class="co"># 秒差を計算</span></span>
+<span id="cb17-19"><a href="#cb17-19" tabindex="-1"></a>    <span class="at">diff_seconds =</span> <span class="fu">as.integer</span>(<span class="fu">difftime</span>(checkin_date, reserved_at, <span class="at">units =</span> <span class="st">&quot;secs&quot;</span>))</span>
+<span id="cb17-20"><a href="#cb17-20" tabindex="-1"></a>    )</span></code></pre></div>
+<pre><code>## # A tibble: 2,000,000 × 8
+##    reserved_at         checkin_date        diff_years diff_months diff_days
+##    &lt;dttm&gt;              &lt;dttm&gt;                   &lt;int&gt;       &lt;int&gt;     &lt;int&gt;
+##  1 2013-12-31 07:00:14 2014-12-31 00:00:00          0          11       364
+##  2 2013-12-31 08:23:35 2014-12-31 00:00:00          0          11       364
+##  3 2013-12-31 09:02:05 2014-12-31 00:00:00          0          11       364
+##  4 2013-12-31 23:44:54 2014-12-31 00:00:00          0          11       364
+##  5 2014-01-01 02:47:50 2014-12-31 00:00:00          0          11       363
+##  6 2014-01-01 07:56:58 2015-01-01 00:00:00          0          11       364
+##  7 2014-01-01 13:17:06 2014-12-30 00:00:00          0          11       362
+##  8 2014-01-01 14:22:01 2014-12-31 00:00:00          0          11       363
+##  9 2014-01-01 14:59:04 2014-12-31 00:00:00          0          11       363
+## 10 2014-01-01 20:24:34 2014-12-30 00:00:00          0          11       362
+## # ℹ 1,999,990 more rows
+## # ℹ 3 more variables: diff_hours &lt;int&gt;, diff_minutes &lt;int&gt;, diff_seconds &lt;int&gt;</code></pre>
+<hr />
+</div>
+</div>
+</div>
+<div id="日時の数値化" class="section level2">
+<h2>12-6 日時の数値化</h2>
+<div id="q-チェックイン日の休日フラグの付与" class="section level3">
+<h3>Q: チェックイン日の休日フラグの付与</h3>
+<div id="awesome-5" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># (1) 日付マスタの作成</span></span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>date_master <span class="ot">&lt;-</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>  <span class="co"># （1）-1 連続した日付の生成 </span></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">dt =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">&quot;2014-01-01&quot;</span>), <span class="fu">as.Date</span>(<span class="st">&quot;2019-12-31&quot;</span>), <span class="at">by =</span> <span class="st">&quot;day&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>  <span class="co"># （1）-2 祝日マスタの結合</span></span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a>  <span class="fu">left_join</span>(holiday, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;dt&quot;</span> <span class="ot">=</span> <span class="st">&quot;holiday_date&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a>    <span class="co"># （1）-3 休日フラグ（祝日と土日）の作成</span></span>
+<span id="cb19-9"><a href="#cb19-9" tabindex="-1"></a>    <span class="at">is_day_off =</span> <span class="fu">if_else</span>(<span class="sc">!</span><span class="fu">is.na</span>(holiday_name) <span class="sc">|</span> <span class="fu">wday</span>(dt) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">6</span>, <span class="dv">7</span>), <span class="dv">1</span>, <span class="dv">0</span>),</span>
+<span id="cb19-10"><a href="#cb19-10" tabindex="-1"></a>    <span class="co"># （1）-4 休日前日フラグを作成</span></span>
+<span id="cb19-11"><a href="#cb19-11" tabindex="-1"></a>    <span class="at">is_day_before_day_off =</span> <span class="fu">lead</span>(is_day_off, <span class="dv">1</span>)</span>
+<span id="cb19-12"><a href="#cb19-12" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb19-13"><a href="#cb19-13" tabindex="-1"></a>  <span class="fu">select</span>(dt, is_day_off, is_day_before_day_off)</span>
+<span id="cb19-14"><a href="#cb19-14" tabindex="-1"></a></span>
+<span id="cb19-15"><a href="#cb19-15" tabindex="-1"></a><span class="co"># (2) reservationと結合</span></span>
+<span id="cb19-16"><a href="#cb19-16" tabindex="-1"></a>reservation <span class="sc">|&gt;</span></span>
+<span id="cb19-17"><a href="#cb19-17" tabindex="-1"></a>  <span class="fu">left_join</span>(date_master, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;checkin_date&quot;</span> <span class="ot">=</span> <span class="st">&quot;dt&quot;</span>))</span></code></pre></div>
+<pre><code>## # A tibble: 2,000,000 × 13
+##    reservation_id hotel_id customer_id reserved_at         checkin_date       
+##             &lt;int&gt;    &lt;int&gt;       &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;             
+##  1              1     2460       53431 2013-12-31 07:00:14 2014-12-31 00:00:00
+##  2              2      962      488390 2013-12-31 08:23:35 2014-12-31 00:00:00
+##  3              3      558      341335 2013-12-31 09:02:05 2014-12-31 00:00:00
+##  4              4     3666      398981 2013-12-31 23:44:54 2014-12-31 00:00:00
+##  5              5     2180      220381 2014-01-01 02:47:50 2014-12-31 00:00:00
+##  6              6      974        1494 2014-01-01 07:56:58 2015-01-01 00:00:00
+##  7              7     2260       24104 2014-01-01 13:17:06 2014-12-30 00:00:00
+##  8              8      314      124883 2014-01-01 14:22:01 2014-12-31 00:00:00
+##  9              9     2211       45282 2014-01-01 14:59:04 2014-12-31 00:00:00
+## 10             10      333      390595 2014-01-01 20:24:34 2014-12-30 00:00:00
+## # ℹ 1,999,990 more rows
+## # ℹ 8 more variables: checkout_date &lt;dttm&gt;, length_of_stay &lt;int&gt;,
+## #   people_num &lt;int&gt;, total_price &lt;int&gt;, status &lt;chr&gt;, canceled_at &lt;dttm&gt;,
+## #   is_day_off &lt;dbl&gt;, is_day_before_day_off &lt;dbl&gt;</code></pre>
+<p>以上です。</p>
+<p>第13章 文字列</p>
+<p><a href="ch11_category_tidyverse.html">第11章 数値</a></p>
+<p><a href="index.html">Top</a></p>
+</div>
+</div>
 </div>
 
 

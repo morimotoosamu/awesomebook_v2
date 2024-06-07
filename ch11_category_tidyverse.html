@@ -13,7 +13,7 @@
 
 <meta name="date" content="2024-06-07" />
 
-<title>『改訂新版前処理大全』のR言語(Tidyverse)版サンプルコード</title>
+<title>第11章 カテゴリ</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1550,49 +1550,206 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">『改訂新版前処理大全』のR言語(Tidyverse)版サンプルコード</h1>
+<h1 class="title toc-ignore">第11章 カテゴリ</h1>
 <h4 class="author">Osamu Morimoto</h4>
 <h4 class="date">2024-06-07</h4>
 
 </div>
 
 
-<div id="はじめに" class="section level2">
-<h2>はじめに</h2>
-<p>このページでは<a href="https://gihyo.jp/book/2024/978-4-297-14138-7">『改訂新版前処理大全』</a>の<a href="https://www.r-project.org/">R言語</a>の<a href="https://www.tidyverse.org/">Tidyverse</a>によるサンプルコードを公開しています。</p>
-<ul>
-<li><a href="ch05_select_tidyverse.html">第5章 抽出</a></li>
-<li><a href="ch06_aggregate_tidyverse.html">第6章 集約</a></li>
-<li><a href="ch07_join_tidyverse.html">第7章 結合</a></li>
-<li><a href="ch08_split_tidyverse.html">第8章 分割</a></li>
-<li><a href="ch09_reshaping_tidyverse.html">第9章 整形</a></li>
-<li><a href="ch10_number_tidyverse.html">第10章 数値</a></li>
-<li><a href="ch11_category_tidyverse.html">第11章 カテゴリ</a></li>
-<li><a href="ch12_datetime_tidyverse.html">第12章 日時</a></li>
-<li>第13章 文字列</li>
-<li>第14章 ウィンドウ関数</li>
-<li>第15章 演習問題</li>
-</ul>
-<p>また、本書ではサンプルデータが<a href="https://parquet.apache.org/">Apache
-Parquet</a>形式で提供されています。</p>
-<p>本編では汎用性を考慮してこれを一般的なデータフレームに変換して扱っています。</p>
-<p>しかし、これを arrow
-tableとして処理すると非常に高速な処理が可能になります。</p>
-<p>以下のページではサンプルデータを arrow
-tableとして処理する方法について簡単に解説します。</p>
-<ul>
-<li><a href="apache_parquet.html">Apache Parquet
-による前処理の高速化</a></li>
-</ul>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(conflicted)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div>
+<pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+## ✔ dplyr     1.1.4     ✔ readr     2.1.5
+## ✔ forcats   1.0.0     ✔ stringr   1.5.1
+## ✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+## ✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+## ✔ purrr     1.0.2</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">library</span>(caret)</span></code></pre></div>
+<pre><code>## 要求されたパッケージ lattice をロード中です</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">library</span>(fastDummies)</span></code></pre></div>
+<pre><code>## Thank you for using fastDummies!
+## To acknowledge our work, please cite the package:
+## Kaplan, J. &amp; Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.</code></pre>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># ファイルの読み込み</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>production_missing_category <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/production_missing_category.parquet&quot;</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>customer                    <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="st">&quot;https://github.com/ghmagazine/awesomebook_v2/raw/main/data/customer.parquet&quot;</span>)</span></code></pre></div>
+<hr />
+<div id="カテゴリ型への変換" class="section level2">
+<h2>11-1 カテゴリ型への変換</h2>
+<p>RでPythonのカテゴリ型に対応するのは因子型</p>
+<div id="q-性別をカテゴリに適したデータ型に変換" class="section level3">
+<h3>Q: 性別をカテゴリに適したデータ型に変換</h3>
+<div id="awesome" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>customer <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sex_cat =</span> <span class="fu">as.factor</span>(sex)) <span class="sc">|&gt;</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(sex, sex_cat)</span></code></pre></div>
+<pre><code>## # A tibble: 500,000 × 2
+##    sex   sex_cat
+##    &lt;chr&gt; &lt;fct&gt;  
+##  1 &lt;NA&gt;  &lt;NA&gt;   
+##  2 M     M      
+##  3 M     M      
+##  4 M     M      
+##  5 F     F      
+##  6 F     F      
+##  7 F     F      
+##  8 F     F      
+##  9 &lt;NA&gt;  &lt;NA&gt;   
+## 10 F     F      
+## # ℹ 499,990 more rows</code></pre>
 <hr />
 </div>
-<div id="事前準備" class="section level2">
-<h2>事前準備</h2>
-<p>サンプルコードの実行に必要なパッケージ類は事前にインストールしておいてください。</p>
-<p>以下のコードで必要なパッケージがインストールされます。</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;tidyverse&quot;</span>, <span class="st">&quot;conflicted&quot;</span>, <span class="st">&quot;arrow&quot;</span>))</span></code></pre></div>
+</div>
+</div>
+<div id="カテゴリ値の欠損処理" class="section level2">
+<h2>11-2 カテゴリ値の欠損処理</h2>
+<div id="qk-nnによるカテゴリ値の補完" class="section level3">
+<h3>Q:k-NNによるカテゴリ値の補完</h3>
+</div>
+<div id="awesome-1" class="section level3">
+<h3>Awesome</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># （1） 欠損していないデータと欠損しているデータを分割</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>df_notnull <span class="ot">&lt;-</span> production_missing_category <span class="sc">|&gt;</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(type))</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>df_null <span class="ot">&lt;-</span> production_missing_category <span class="sc">|&gt;</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="fu">is.na</span>(type))</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co"># （2） k-NNモデルのオブジェクトを作成</span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>knn <span class="ot">&lt;-</span> <span class="fu">trainControl</span>(<span class="at">method =</span> <span class="st">&quot;none&quot;</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;length&quot;</span>, <span class="st">&quot;thickness&quot;</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co"># （3） 欠損していないデータを用いてk-NNモデルを学習</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>knn_model <span class="ot">&lt;-</span> <span class="fu">train</span>(</span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  type <span class="sc">~</span> .,</span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>  <span class="at">data =</span> df_notnull <span class="sc">|&gt;</span> <span class="fu">select</span>(type, <span class="fu">all_of</span>(cols)),</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">&quot;knn&quot;</span>,</span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>  <span class="at">trControl =</span> knn,</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a>  <span class="at">tuneGrid =</span> <span class="fu">expand.grid</span>(<span class="at">k =</span> <span class="dv">3</span>)</span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>)</span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a></span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a><span class="co"># （4） 欠損しているデータを用いて予測値を計算</span></span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a>pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(</span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a>  knn_model,</span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a>  df_null <span class="sc">|&gt;</span> <span class="fu">select</span>(<span class="fu">all_of</span>(cols))</span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a>  )</span>
+<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a><span class="co"># （5） 欠損していないデータと欠損補完したデータを結合</span></span>
+<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a><span class="fu">bind_rows</span>(</span>
+<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a>  df_notnull,</span>
+<span id="cb10-30"><a href="#cb10-30" tabindex="-1"></a>  df_null <span class="sc">|&gt;</span></span>
+<span id="cb10-31"><a href="#cb10-31" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">type =</span> pred)</span>
+<span id="cb10-32"><a href="#cb10-32" tabindex="-1"></a>  )</span></code></pre></div>
+<pre><code>## # A tibble: 1,000 × 4
+##    type  length thickness fault_flg
+##    &lt;chr&gt;  &lt;dbl&gt;     &lt;dbl&gt; &lt;lgl&gt;    
+##  1 E      274.      40.2  FALSE    
+##  2 D       86.3     16.9  FALSE    
+##  3 E      124.       1.02 FALSE    
+##  4 B      176.      16.4  FALSE    
+##  5 B      245.      29.1  FALSE    
+##  6 B      226.      39.8  FALSE    
+##  7 C      332.      16.8  FALSE    
+##  8 A      201.      12.2  FALSE    
+##  9 E      168.       1.27 FALSE    
+## 10 D      218.      33.1  FALSE    
+## # ℹ 990 more rows</code></pre>
 <hr />
-<p>以上。</p>
+</div>
+</div>
+<div id="カテゴリ値の集約" class="section level2">
+<h2>11-3 カテゴリ値の集約</h2>
+<div id="q-年齢カテゴリの集約" class="section level3">
+<h3>Q: 年齢カテゴリの集約</h3>
+<div id="awesome-2" class="section level4">
+<h4>Awesome</h4>
+<p><code>as.ordered()</code>で順序付き因子型に。</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>customer <span class="sc">|&gt;</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>    <span class="at">age_cat =</span> <span class="fu">if_else</span>(age <span class="sc">&gt;=</span> <span class="dv">60</span>, <span class="dv">6</span>, <span class="fu">as.integer</span>(age <span class="sc">/</span> <span class="dv">10</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>      <span class="fu">as.ordered</span>()</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>    ) </span></code></pre></div>
+<pre><code>## # A tibble: 500,000 × 9
+##    customer_id name       age sex   address_prefecture address_city address_town
+##          &lt;int&gt; &lt;chr&gt;    &lt;int&gt; &lt;chr&gt; &lt;chr&gt;              &lt;chr&gt;        &lt;chr&gt;       
+##  1           1 山田 裕…    75 &lt;NA&gt;  岐阜県             岐阜市       鷺山清洲町  
+##  2           2 藤井 稔     83 M     大阪府             豊能郡能勢町 地黄        
+##  3           3 青木 太…    62 M     佐賀県             佐賀市       本庄町袋    
+##  4           4 渡辺 裕…    28 M     福島県             喜多方市     豊川町高堂太
+##  5           5 渡辺 明…    62 F     兵庫県             西宮市       津門西口町  
+##  6           6 西村 知…    66 F     秋田県             仙北郡美郷町 佐野        
+##  7           7 斉藤 七…    34 F     高知県             長岡郡大豊町 日浦        
+##  8           8 村上 明…    81 F     北海道             夕張市       南部青葉町  
+##  9           9 鈴木 直…    57 &lt;NA&gt;  京都府             京都市左京区 上高野石田町
+## 10          10 佐藤 舞     59 F     神奈川県           伊勢原市     下糟屋      
+## # ℹ 499,990 more rows
+## # ℹ 2 more variables: address_zipcode &lt;chr&gt;, age_cat &lt;ord&gt;</code></pre>
+<hr />
+</div>
+</div>
+</div>
+<div id="カテゴリ値の組み合わせ" class="section level2">
+<h2>11-4 カテゴリ値の組み合わせ</h2>
+<div id="q-性別と年齢のカテゴリの組み合わせ" class="section level3">
+<h3>Q: 性別と年齢のカテゴリの組み合わせ</h3>
+<div id="awesome-3" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>customer <span class="sc">|&gt;</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sex_age_cat =</span> <span class="fu">as.factor</span>(<span class="fu">paste</span>(<span class="fu">coalesce</span>(sex, <span class="st">&quot;unknown&quot;</span>), <span class="fu">as.integer</span>(age <span class="sc">/</span> <span class="dv">10</span>), <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>)))</span></code></pre></div>
+<pre><code>## # A tibble: 500,000 × 9
+##    customer_id name       age sex   address_prefecture address_city address_town
+##          &lt;int&gt; &lt;chr&gt;    &lt;int&gt; &lt;chr&gt; &lt;chr&gt;              &lt;chr&gt;        &lt;chr&gt;       
+##  1           1 山田 裕…    75 &lt;NA&gt;  岐阜県             岐阜市       鷺山清洲町  
+##  2           2 藤井 稔     83 M     大阪府             豊能郡能勢町 地黄        
+##  3           3 青木 太…    62 M     佐賀県             佐賀市       本庄町袋    
+##  4           4 渡辺 裕…    28 M     福島県             喜多方市     豊川町高堂太
+##  5           5 渡辺 明…    62 F     兵庫県             西宮市       津門西口町  
+##  6           6 西村 知…    66 F     秋田県             仙北郡美郷町 佐野        
+##  7           7 斉藤 七…    34 F     高知県             長岡郡大豊町 日浦        
+##  8           8 村上 明…    81 F     北海道             夕張市       南部青葉町  
+##  9           9 鈴木 直…    57 &lt;NA&gt;  京都府             京都市左京区 上高野石田町
+## 10          10 佐藤 舞     59 F     神奈川県           伊勢原市     下糟屋      
+## # ℹ 499,990 more rows
+## # ℹ 2 more variables: address_zipcode &lt;chr&gt;, sex_age_cat &lt;fct&gt;</code></pre>
+<hr />
+</div>
+</div>
+</div>
+<div id="カテゴリ値の数値化" class="section level2">
+<h2>11-5 カテゴリ値の数値化</h2>
+<div id="q-性別のone-hotエンコーディング" class="section level3">
+<h3>Q: 性別のone-hotエンコーディング</h3>
+<p>caretパッケージやtidymodelsパッケージでもいいが、fastDummiesパッケージが便利。</p>
+<div id="awesome-4" class="section level4">
+<h4>Awesome</h4>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>customer <span class="sc">|&gt;</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sex =</span> <span class="fu">replace_na</span>(sex, <span class="st">&quot;unknown&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>  <span class="fu">dummy_cols</span>(<span class="at">select_columns =</span> <span class="st">&quot;sex&quot;</span>, <span class="at">remove_most_frequent_dummy =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<pre><code>## # A tibble: 500,000 × 11
+##    customer_id name       age sex   address_prefecture address_city address_town
+##          &lt;int&gt; &lt;chr&gt;    &lt;int&gt; &lt;chr&gt; &lt;chr&gt;              &lt;chr&gt;        &lt;chr&gt;       
+##  1           1 山田 裕…    75 unkn… 岐阜県             岐阜市       鷺山清洲町  
+##  2           2 藤井 稔     83 M     大阪府             豊能郡能勢町 地黄        
+##  3           3 青木 太…    62 M     佐賀県             佐賀市       本庄町袋    
+##  4           4 渡辺 裕…    28 M     福島県             喜多方市     豊川町高堂太
+##  5           5 渡辺 明…    62 F     兵庫県             西宮市       津門西口町  
+##  6           6 西村 知…    66 F     秋田県             仙北郡美郷町 佐野        
+##  7           7 斉藤 七…    34 F     高知県             長岡郡大豊町 日浦        
+##  8           8 村上 明…    81 F     北海道             夕張市       南部青葉町  
+##  9           9 鈴木 直…    57 unkn… 京都府             京都市左京区 上高野石田町
+## 10          10 佐藤 舞     59 F     神奈川県           伊勢原市     下糟屋      
+## # ℹ 499,990 more rows
+## # ℹ 4 more variables: address_zipcode &lt;chr&gt;, sex_F &lt;int&gt;, sex_NA &lt;int&gt;,
+## #   sex_unknown &lt;int&gt;</code></pre>
+<p>以上です。</p>
+<p><a href="ch12_datetime_tidyverse.html">第12章 日時</a></p>
+<p><a href="ch10_number_tidyverse.html">第10章 数値</a></p>
+<p><a href="index.html">Top</a></p>
+</div>
+</div>
 </div>
 
 
